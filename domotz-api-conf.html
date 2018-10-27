@@ -1,0 +1,29 @@
+<script type="text/javascript">
+    RED.nodes.registerType('domotz-api-conf', {
+        category: 'config',
+        defaults: {
+            name: {value: "Name", required: true},
+            endpoint: {value: "https://", required: true},
+            key: {value: "", required: true}
+        },
+        label: function () {
+            return this.name;
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="domotz-api-conf">
+    <div class="form-row">
+        <label for="node-config-input-name"><i class="icon-bookmark"></i>Name</label>
+        <input type="text" id="node-config-input-name">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-endpoint"><i class="icon-bookmark"></i>Endpoint</label>
+        <input type="text" id="node-config-input-endpoint">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-key"><i class="icon-bookmark"></i>API-Key</label>
+        <input type="text" id="node-config-input-key">
+    </div>
+
+</script>

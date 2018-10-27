@@ -1,0 +1,35 @@
+<script type="text/javascript">
+    RED.nodes.registerType('domotz-api', {
+        category: 'Domotz',
+        color: '#a6bbcf',
+        defaults: {
+            name: {value: ""},
+            api: {value: "", type: "domotz-api-conf"},
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "domotz.png",
+        label: function () {
+            return this.name || "domotz-api";
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="domotz-api">
+    <div class="form-row">
+        <label for="node-input-api"><i class="icon-tag"></i>Configuration</label>
+        <input type="text" id="node-input-api" placeholder="">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i>Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+
+
+</script>
+
+<script type="text/x-red" data-help-name="domotz-api">
+    <p>Domotz Public API wrapper</p>
+
+
+</script>
