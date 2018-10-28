@@ -7,15 +7,18 @@
             api: {value: "", type: "domotz-api-conf"},
             endpoint: {
                 required: true
-            }
+            },
+            hidden: {value: 0}
         },
         inputs: 1,
-        outputs: 1,
+        outputs: 2,
         icon: "domotz.png",
         label: function () {
             return this.name || "domotz-api";
         },
         oneditprepare: function () {
+            //TODO: handle cancel operation
+
             var node = this;
             var selectOperation = $('#node-input-endpoint');
 
@@ -36,7 +39,14 @@
                 selectOperation.change(function () {
                     node.endpoint = $('#node-input-endpoint option:selected').text();
                 });
+
+
             })
+        },
+        oneditsave: function () {
+            //trick to force new deployment
+            var node = this;
+            node.hidden = node.hidden ? 0: 1;
         }
     });
 </script>
@@ -61,8 +71,4 @@
 
 <script type="text/x-red" data-help-name="domotz-api">
     <p>Domotz Public API wrapper</p>
-
-
-
-
 </script>

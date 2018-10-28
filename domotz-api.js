@@ -11,15 +11,28 @@ module.exports = function (RED) {
 
         node.on('input', function (msg) {
 
-
             if (!node.api || !node.api.key || !node.api.endpoint || !config.endpoint) {
                 node.status({fill: "red", shape: "ring", text: "disconnected"});
                 return;
             }
+
             let splitEndpoint = config.endpoint.split(' ');
             let method = splitEndpoint[1];
             let publicApiEndpoint = url.resolve(node.api.endpoint, '/public-api/v1');
             let domotzUrl = publicApiEndpoint +  splitEndpoint[0];
+
+            if (msg.payload.urlParams) {
+                for (let param in msg.payload.urlParams) {
+                    domotzUrl = domotzUrl.replace('{' + param + '}', msg.payload.urlParams[param]);
+                }
+            }
+
+            if (domotzUrl.indexOf('{') != -1) {
+                node.send([null, {
+                    payload: "Not all URL params converted: " + domotzUrl
+                }]);
+                return;
+            }
 
             let options = {
                 method: method,
@@ -29,18 +42,23 @@ module.exports = function (RED) {
                 }
             };
 
+            node.log("performing request to " + domotzUrl);
+
             rq(options)
                 .then(function (rawResult) {
                     let result = JSON.parse(rawResult);
                     let payload = {
                         payload: result
                     };
-                    node.send(payload);
+                    node.send([payload, null]);
                     node.status({fill: "green", shape: "dot", text: "connected"});
                 })
-                .catch(function () {
-                    node.log("Unable to get " + domotzUrl);
-                    node.status({fill: "red", shape: "ring", text: "disconnected"});
+                .catch(function (err) {
+                    node.log("Unable to get " + err);
+                    node.send([null, {
+                        payload: err.response.statusCode
+                    }]);
+
                 });
         });
 
