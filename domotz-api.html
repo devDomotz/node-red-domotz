@@ -5,31 +5,64 @@
         defaults: {
             name: {value: ""},
             api: {value: "", type: "domotz-api-conf"},
+            endpoint: {
+                required: true
+            }
         },
         inputs: 1,
         outputs: 1,
         icon: "domotz.png",
         label: function () {
             return this.name || "domotz-api";
+        },
+        oneditprepare: function () {
+            var node = this;
+            var selectOperation = $('#node-input-endpoint');
+
+            var availableEndpoints = [];
+            $.getJSON("https://api-eu-west-1-cell-1.domotz.com/public-api/v1/meta/open-api-definition", function (data) {
+                $.each(data.paths, function (path) {
+                    $.each(data.paths[path], function (method) {
+                        availableEndpoints.push(path + ' ' + method.toUpperCase());
+                    });
+                });
+                availableEndpoints.sort();
+
+                selectOperation.append($('<option disabled selected value> -- select an option -- </option>'));
+
+                $.each(availableEndpoints, function (index, endpoint) {
+                    selectOperation.append($('<option></option>').attr('value', endpoint).attr('selected', node.endpoint === endpoint).text(endpoint));
+                });
+                selectOperation.change(function () {
+                    node.endpoint = $('#node-input-endpoint option:selected').text();
+                });
+            })
         }
     });
 </script>
 
 <script type="text/x-red" data-template-name="domotz-api">
     <div class="form-row">
-        <label for="node-input-api"><i class="icon-tag"></i>Configuration</label>
+        <label for="node-input-api"><i class="fa fa-wrench"></i> Conf</label>
         <input type="text" id="node-input-api" placeholder="">
     </div>
     <div class="form-row">
-        <label for="node-input-name"><i class="icon-tag"></i>Name</label>
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
+    <div class="form-row">
+        <label for="node-input-endpoint"><i class="icon-tag"></i> API</label>
+        <select id="node-input-endpoint"></select>
+    </div>
+
 
 
 </script>
 
 <script type="text/x-red" data-help-name="domotz-api">
     <p>Domotz Public API wrapper</p>
+
+
 
 
 </script>

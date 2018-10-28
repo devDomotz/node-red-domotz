@@ -3,8 +3,6 @@
   "version": "0.0.1",
   "description": "A collection of Node-Red nodes to access the Domotz public API",
   "main": "index.js",
-  "scripts": {
-  },
   "keywords": [
     "node-red",
     "domotz",
@@ -24,5 +22,9 @@
       "domotz-api": "domotz-api.js",
       "domotz-api-conf": "domotz-api-conf.js"
     }
+  },
+  "dependencies": {
+    "request": "^2.88.0",
+    "request-promise-native": "^1.0.5"
   }
 }
