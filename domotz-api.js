@@ -1,5 +1,6 @@
 const rq = require('request-promise-native');
 const url = require('url');
+const querystring = require('querystring');
 
 module.exports = function (RED) {
     function DomotzApi(config) {
@@ -35,6 +36,14 @@ module.exports = function (RED) {
             node.status({fill: "green", shape: "dot", text: "connected"});
         };
 
+        let isQueryParam = function (paramName, operationDetails) {
+            for (let i = 0; i < operationDetails.parameters.length; i++) {
+                if (operationDetails.parameters[i].name == paramName) {
+                    return (operationDetails.parameters[i].in === 'query');
+                }
+            }
+        };
+
         node.on('input', function (msg) {
             let operationDetails = config.endpointsMap[config.operation];
 
@@ -45,20 +54,32 @@ module.exports = function (RED) {
             let method = operationDetails['method'];
             let publicApiEndpoint = url.resolve(node.api.endpoint, '/public-api/v1');
             let domotzUrl = publicApiEndpoint + operationDetails['path'];
+            let queryParams = {};
 
-            let hasParams = operationDetails.parameters.length > 0;
-            if (hasParams) {
-                if (config.useinputparams && msg.payload.urlParams) {
-                    for (let param in msg.payload.urlParams) {
-                        domotzUrl = domotzUrl.replace('{' + param + '}', msg.payload.urlParams[param]);
+            let addParameters = function (name, value) {
+                if (isQueryParam(name, operationDetails) && value) {
+                    queryParams[name] = value;
+                } else {
+                    domotzUrl = domotzUrl.replace('{' + name + '}', value);
+                }
+            };
+
+            if (operationDetails.hasParams) {
+                if (config.useinputparams && msg.payload.params) {
+                    for (let param in msg.payload.params) {
+                        addParameters(param, msg.payload.params[param]);
                     }
                 } else {
                     for (let param in config.parameters) {
-                        domotzUrl = domotzUrl.replace('{' + param + '}', config.parameters[param]);
+                        addParameters(param, config.parameters[param]);
                     }
                 }
             }
 
+            if (Object.keys(queryParams).length > 0) {
+                let queryString = querystring.stringify(queryParams);
+                domotzUrl = domotzUrl + '?' + queryString;
+            }
 
             if (domotzUrl.indexOf('{') != -1) {
                 node.send([null, {
@@ -83,11 +104,10 @@ module.exports = function (RED) {
                     node.status({fill: "green", shape: "dot", text: "connected"});
                 })
                 .catch(function (err) {
-                    node.log("Unable to get " + err);
+                    node.warn("Unable to get " + err);
                     node.send([null, {
                         payload: err.response.statusCode
                     }]);
-
                 });
         });
 
@@ -103,7 +123,7 @@ module.exports = function (RED) {
                     setStatusConnected();
                 })
                 .catch(function () {
-                    node.log("Unable to authenticate");
+                    node.warn("Unable to authenticate");
                     setStatusDisconnected();
                 });
         }

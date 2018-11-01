@@ -8,7 +8,6 @@
             operation: {
                 required: true
             },
-            hidden: {value: 0},
             endpointsMap: {},
             parameters: {},
             useinputparams: {}
@@ -44,6 +43,10 @@
                         availableEndpoints.push(opId);
                         operationDetails['path'] = path;
                         operationDetails['method'] = method;
+                        operationDetails['hasParams'] = false;
+                        if (operationDetails.parameters && operationDetails.parameters.length > 0) {
+                            operationDetails['hasParams'] = true;
+                        }
                         endpointsMap[opId] = operationDetails;
                         node.endpointsMap = endpointsMap;
                     });
@@ -59,6 +62,27 @@
                     })
                 };
 
+                var createCheckbox = function () {
+                    var checkboxRow = $('<div class="form-row"></div>');
+                    var checkboxInput = $('<input type="checkbox">');
+                    var checkboxLabel = $('<label><i class="fa fa-cogs"></i></label>');
+                    checkboxLabel.text("Use node input params");
+                    checkboxInput.attr('id', 'useinputparams');
+                    if (node.useinputparams) {
+                        checkboxInput.prop("checked", true);
+                    }
+                    checkboxRow.append(checkboxLabel);
+                    checkboxRow.append(checkboxInput);
+                    operationParamsCheckbox.append(checkboxRow);
+                    checkboxInput.change(function () {
+                        if ($(this).is(':checked')) {
+                            disableInputParams(true);
+                        } else {
+                            disableInputParams(false);
+                        }
+                    });
+                };
+
                 var setOperationSummary = function () {
                     operationSummary.text(node.endpointsMap[node.operation]['summary']);
 
@@ -66,24 +90,7 @@
                     operationParams.text("");
                     operationParamsCheckbox.text("");
                     if (parameters) {
-                        var checkboxRow = $('<div class="form-row"></div>');
-                        var checkboxInput = $('<input type="checkbox">');
-                        var checkboxLabel = $('<label><i class="fa fa-cogs"></i></label>');
-                        checkboxLabel.text("Use node input params");
-                        checkboxInput.attr('id', 'useinputparams');
-                        if (node.useinputparams) {
-                            checkboxInput.prop("checked", true);
-                        }
-                        checkboxRow.append(checkboxLabel);
-                        checkboxRow.append(checkboxInput);
-                        operationParamsCheckbox.append(checkboxRow);
-                        checkboxInput.change(function () {
-                            if ($(this).is(':checked')) {
-                                disableInputParams(true);
-                            } else {
-                                disableInputParams(false);
-                            }
-                        });
+                        createCheckbox();
 
                         $.each(parameters, function (idx, param) {
                             var formRow = $('<div class="form-row"></div>');
@@ -112,7 +119,9 @@
 
                 $.each(availableEndpoints, function (index, endpoint) {
                     selectOperation.append($('<option></option>').attr('value', endpoint).attr('selected', node.operation === endpoint).text(endpoint));
-                    setOperationSummary();
+                    if (node.operation === endpoint) {
+                        setOperationSummary();
+                    }
                 });
                 selectOperation.change(function () {
                     node.operation = $('#node-input-operation option:selected').text();
@@ -121,8 +130,7 @@
             })
         },
         oneditsave: function () {
-            var node = this; //force new deployment
-            node.hidden = node.hidden ? 0 : 1;
+            var node = this;
             node.parameters = {};
             var useInputParams = $('#useinputparams');
             if (useInputParams.is(':checked')) {
@@ -164,12 +172,11 @@
     <div id="operation-params"></div>
 
 
-
-
 </script>
 
 <script type="text/x-red" data-help-name="domotz-api">
     <h5>Domotz Public API wrapper </h5>
+
 
 
 
