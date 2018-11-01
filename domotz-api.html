@@ -9,7 +9,9 @@
                 required: true
             },
             hidden: {value: 0},
-            endpointsMap: {}
+            endpointsMap: {},
+            parameters: {},
+            useinputparams: {}
         },
         inputs: 1,
         outputs: 2,
@@ -20,11 +22,18 @@
         oneditprepare: function () {
             var node = this;
             var selectOperation = $('#node-input-operation');
+            var operationSummary = $('#operation-summary');
+            var apiSummary = $('#api-summary');
+            var apiVersion = $('#api-version');
+            var operationParams = $('#operation-params');
+            var operationParamsCheckbox = $('#operation-params-checkbox');
 
             var availableEndpoints = [];
             var endpointsMap = {};
             $.getJSON("https://api-eu-west-1-cell-1.domotz.com/public-api/v1/meta/open-api-definition", function (data) {
-                console.log(data.paths);
+                apiVersion.text(data.info.version);
+                apiSummary.text(data.info.title);
+
                 $.each(data.paths, function (path) {
                     $.each(data.paths[path], function (method) {
                         var operationDetails = data.paths[path][method];
@@ -43,23 +52,99 @@
 
                 selectOperation.append($('<option disabled selected value> - select an option - </option>'));
 
+                var disableInputParams = function (val) {
+                    var operationParams = $('#operation-params');
+                    operationParams.children().each(function () {
+                        $($(this).children('input')).prop('disabled', val);
+                    })
+                };
+
+                var setOperationSummary = function () {
+                    operationSummary.text(node.endpointsMap[node.operation]['summary']);
+
+                    var parameters = node.endpointsMap[node.operation]['parameters'];
+                    operationParams.text("");
+                    operationParamsCheckbox.text("");
+                    if (parameters) {
+                        var checkboxRow = $('<div class="form-row"></div>');
+                        var checkboxInput = $('<input type="checkbox">');
+                        var checkboxLabel = $('<label><i class="fa fa-cogs"></i></label>');
+                        checkboxLabel.text("Use node input params");
+                        checkboxInput.attr('id', 'useinputparams');
+                        if (node.useinputparams) {
+                            checkboxInput.prop("checked", true);
+                        }
+                        checkboxRow.append(checkboxLabel);
+                        checkboxRow.append(checkboxInput);
+                        operationParamsCheckbox.append(checkboxRow);
+                        checkboxInput.change(function () {
+                            if ($(this).is(':checked')) {
+                                disableInputParams(true);
+                            } else {
+                                disableInputParams(false);
+                            }
+                        });
+
+                        $.each(parameters, function (idx, param) {
+                            var formRow = $('<div class="form-row"></div>');
+                            var label = $('<label><i class="fa fa-cogs"></i></label>');
+                            label.text(param.name + (param.required ? '*' : ''));
+                            var input = $('<input type="text">');
+                            input.attr('placeholder', param.description);
+                            input.attr('id', param.name);
+                            formRow.attr('title', param.description);
+                            if (node.parameters !== undefined) {
+                                var val = node.parameters[param.name] || null;
+                                if (val !== null) {
+                                    input.val(val);
+                                }
+                            }
+                            formRow.append(label);
+                            formRow.append(input);
+                            formRow.attr('id', param.name);
+                            operationParams.append(formRow);
+                        });
+                        if (node.useinputparams) {
+                            disableInputParams(true);
+                        }
+                    }
+                };
+
                 $.each(availableEndpoints, function (index, endpoint) {
                     selectOperation.append($('<option></option>').attr('value', endpoint).attr('selected', node.operation === endpoint).text(endpoint));
+                    setOperationSummary();
                 });
                 selectOperation.change(function () {
                     node.operation = $('#node-input-operation option:selected').text();
+                    setOperationSummary();
                 });
             })
         },
         oneditsave: function () {
-            //trick to force new deployment
-            var node = this;
-            node.hidden = node.hidden ? 0: 1;
+            var node = this; //force new deployment
+            node.hidden = node.hidden ? 0 : 1;
+            node.parameters = {};
+            var useInputParams = $('#useinputparams');
+            if (useInputParams.is(':checked')) {
+                node.useinputparams = true;
+                return;
+            }
+            node.useinputparams = false;
+            var operationParams = $('#operation-params');
+            operationParams.children().each(function () {
+                node.parameters[this.id] = $($(this).children('input')).val();
+            })
         }
     });
 </script>
 
 <script type="text/x-red" data-template-name="domotz-api">
+
+    <div>
+        <h4 id="api-summary"></h4>
+        <p><span>Version: </span> <span id="api-version"></span></p>
+    </div>
+
     <div class="form-row">
         <label for="node-input-api"><i class="fa fa-wrench"></i> Conf</label>
         <input type="text" id="node-input-api" placeholder="">
@@ -73,8 +158,20 @@
         <select id="node-input-operation"></select>
     </div>
 
+    <h4 id="operation-summary"></h4>
+
+    <div id="operation-params-checkbox"></div>
+    <div id="operation-params"></div>
+
+
+
+
 </script>
 
 <script type="text/x-red" data-help-name="domotz-api">
-    <p>Domotz Public API wrapper</p>
+    <h5>Domotz Public API wrapper </h5>
+
+
+
+
 </script>

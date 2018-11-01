@@ -46,11 +46,19 @@ module.exports = function (RED) {
             let publicApiEndpoint = url.resolve(node.api.endpoint, '/public-api/v1');
             let domotzUrl = publicApiEndpoint + operationDetails['path'];
 
-            if (msg.payload.urlParams) {
-                for (let param in msg.payload.urlParams) {
-                    domotzUrl = domotzUrl.replace('{' + param + '}', msg.payload.urlParams[param]);
+            let hasParams = operationDetails.parameters.length > 0;
+            if (hasParams) {
+                if (config.useinputparams && msg.payload.urlParams) {
+                    for (let param in msg.payload.urlParams) {
+                        domotzUrl = domotzUrl.replace('{' + param + '}', msg.payload.urlParams[param]);
+                    }
+                } else {
+                    for (let param in config.parameters) {
+                        domotzUrl = domotzUrl.replace('{' + param + '}', config.parameters[param]);
+                    }
                 }
             }
+
 
             if (domotzUrl.indexOf('{') != -1) {
                 node.send([null, {
@@ -58,6 +66,8 @@ module.exports = function (RED) {
                 }]);
                 return;
             }
+
+            node.log("Domotz URL: " + domotzUrl);
 
             let options = getRequestOptions(domotzUrl, node.api.key, method);
 
