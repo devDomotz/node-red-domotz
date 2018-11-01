@@ -10,7 +10,11 @@
             },
             endpointsMap: {},
             parameters: {},
-            useinputparams: {}
+            useinputparams: {},
+            oldOperation: {},
+            oldName: {},
+            oldParameters: {},
+            oldUseinputparams: {}
         },
         inputs: 1,
         outputs: 2,
@@ -20,6 +24,16 @@
         },
         oneditprepare: function () {
             var node = this;
+
+            var clone = function (v) {
+                return JSON.parse(JSON.stringify(v));
+            };
+
+            node.oldOperation = clone(node.operation);
+            node.oldName = clone(node.name);
+            node.oldParameters = clone(node.parameters);
+            node.oldUseinputparams = clone(node.useinputparams);
+
             var selectOperation = $('#node-input-operation');
             var operationSummary = $('#operation-summary');
             var apiSummary = $('#api-summary');
@@ -65,7 +79,7 @@
                 var createCheckbox = function () {
                     var checkboxRow = $('<div class="form-row"></div>');
                     var checkboxInput = $('<input type="checkbox">');
-                    var checkboxLabel = $('<label><i class="fa fa-cogs"></i></label>');
+                    var checkboxLabel = $('<label></label>');
                     checkboxLabel.text("Use node input params");
                     checkboxInput.attr('id', 'useinputparams');
                     if (node.useinputparams) {
@@ -94,7 +108,7 @@
 
                         $.each(parameters, function (idx, param) {
                             var formRow = $('<div class="form-row"></div>');
-                            var label = $('<label><i class="fa fa-cogs"></i></label>');
+                            var label = $('<label></label>');
                             label.text(param.name + (param.required ? '*' : ''));
                             var input = $('<input type="text">');
                             input.attr('placeholder', param.description);
@@ -142,6 +156,16 @@
             operationParams.children().each(function () {
                 node.parameters[this.id] = $($(this).children('input')).val();
             })
+        },
+        oneditcancel: function () {
+            var node = this;
+            var clone = function (v) {
+                return JSON.parse(JSON.stringify(v));
+            };
+            node.operation = clone(node.oldOperation);
+            node.name = clone(node.oldName);
+            node.parameters = clone(node.oldParameters);
+            node.useinputparams = clone(node.oldUseinputparams);
         }
     });
 </script>
