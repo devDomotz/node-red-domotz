@@ -9,17 +9,42 @@ module.exports = function (RED) {
 
         node.api = RED.nodes.getNode(config.api);
 
-        node.on('input', function (msg) {
+        let getRequestOptions = function (uri, apiKey, method, body) {
+            let options = {
+                headers: {
+                    'X-API-KEY': node.api.key
+                },
+                uri: uri
+            };
+            if (method) {
+                options.method = method;
+            }
+            if (body) {
+                options.body = body;
+                options.json = true;
+            }
+            return options;
+        };
 
-            if (!node.api || !node.api.key || !node.api.endpoint || !config.endpoint) {
-                node.status({fill: "red", shape: "ring", text: "disconnected"});
+
+        let setStatusDisconnected = function () {
+            node.status({fill: "red", shape: "ring", text: "disconnected"});
+        };
+
+        let setStatusConnected = function () {
+            node.status({fill: "green", shape: "dot", text: "connected"});
+        };
+
+        node.on('input', function (msg) {
+            let operationDetails = config.endpointsMap[config.operation];
+
+            if (!node.api || !node.api.key || !node.api.endpoint || !config.operation || !operationDetails) {
+                setStatusDisconnected();
                 return;
             }
-
-            let splitEndpoint = config.endpoint.split(' ');
-            let method = splitEndpoint[1];
+            let method = operationDetails['method'];
             let publicApiEndpoint = url.resolve(node.api.endpoint, '/public-api/v1');
-            let domotzUrl = publicApiEndpoint +  splitEndpoint[0];
+            let domotzUrl = publicApiEndpoint + operationDetails['path'];
 
             if (msg.payload.urlParams) {
                 for (let param in msg.payload.urlParams) {
@@ -34,13 +59,7 @@ module.exports = function (RED) {
                 return;
             }
 
-            let options = {
-                method: method,
-                uri: domotzUrl,
-                headers: {
-                    'X-API-KEY': node.api.key
-                }
-            };
+            let options = getRequestOptions(domotzUrl, node.api.key, method);
 
             node.log("performing request to " + domotzUrl);
 
@@ -63,26 +82,19 @@ module.exports = function (RED) {
         });
 
         if (!node.api || !node.api.key || !node.api.endpoint) {
-            node.status({fill: "red", shape: "ring", text: "disconnected"});
+            setStatusDisconnected();
         } else {
-            node.log("Domotz API base endpoint is " + node.api.endpoint);
-            node.log("Domotz Chosen Endpoint is " + config.endpoint);
+            let options = getRequestOptions(url.resolve(node.api.endpoint, 'public-api/v1/user'), node.api.key);
 
-            let options = {
-                uri: url.resolve(node.api.endpoint, 'public-api/v1/user'),
-                headers: {
-                    'X-API-KEY': node.api.key
-                }
-            };
             rq(options)
                 .then(function (user) {
                     let userObj = JSON.parse(user);
                     node.log("Domotz User id: " + userObj.id + " name: " + userObj.name);
-                    node.status({fill: "green", shape: "dot", text: "connected"});
+                    setStatusConnected();
                 })
                 .catch(function () {
                     node.log("Unable to authenticate");
-                    node.status({fill: "red", shape: "ring", text: "disconnected"});
+                    setStatusDisconnected();
                 });
         }
     }

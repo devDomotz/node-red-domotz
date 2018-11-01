@@ -5,10 +5,11 @@
         defaults: {
             name: {value: ""},
             api: {value: "", type: "domotz-api-conf"},
-            endpoint: {
+            operation: {
                 required: true
             },
-            hidden: {value: 0}
+            hidden: {value: 0},
+            endpointsMap: {}
         },
         inputs: 1,
         outputs: 2,
@@ -17,30 +18,37 @@
             return this.name || "domotz-api";
         },
         oneditprepare: function () {
-            //TODO: handle cancel operation
-
             var node = this;
-            var selectOperation = $('#node-input-endpoint');
+            var selectOperation = $('#node-input-operation');
 
             var availableEndpoints = [];
+            var endpointsMap = {};
             $.getJSON("https://api-eu-west-1-cell-1.domotz.com/public-api/v1/meta/open-api-definition", function (data) {
+                console.log(data.paths);
                 $.each(data.paths, function (path) {
                     $.each(data.paths[path], function (method) {
-                        availableEndpoints.push(path + ' ' + method.toUpperCase());
+                        var operationDetails = data.paths[path][method];
+
+                        var tag = operationDetails['tags'][0] || 'other';
+                        var opId = tag + '.' + operationDetails['operationId'];
+
+                        availableEndpoints.push(opId);
+                        operationDetails['path'] = path;
+                        operationDetails['method'] = method;
+                        endpointsMap[opId] = operationDetails;
+                        node.endpointsMap = endpointsMap;
                     });
                 });
                 availableEndpoints.sort();
 
-                selectOperation.append($('<option disabled selected value> -- select an option -- </option>'));
+                selectOperation.append($('<option disabled selected value> - select an option - </option>'));
 
                 $.each(availableEndpoints, function (index, endpoint) {
-                    selectOperation.append($('<option></option>').attr('value', endpoint).attr('selected', node.endpoint === endpoint).text(endpoint));
+                    selectOperation.append($('<option></option>').attr('value', endpoint).attr('selected', node.operation === endpoint).text(endpoint));
                 });
                 selectOperation.change(function () {
-                    node.endpoint = $('#node-input-endpoint option:selected').text();
+                    node.operation = $('#node-input-operation option:selected').text();
                 });
-
-
             })
         },
         oneditsave: function () {
@@ -61,11 +69,9 @@
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
     <div class="form-row">
-        <label for="node-input-endpoint"><i class="icon-tag"></i> API</label>
-        <select id="node-input-endpoint"></select>
+        <label for="node-input-operation"><i class="fa fa-list"></i> API</label>
+        <select id="node-input-operation"></select>
     </div>
-
-
 
 </script>
 
