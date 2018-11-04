@@ -225,8 +225,16 @@
      <ol class="node-ports">
          <li>Output
              <dl class="message-properties">
-                 <dt>payload <span class="property-type">string</span></dt>
-                 <dd>the JSON output of the operation, if any.</dd>
+                 <dt>payload.code <span class="property-type">string</span></dt>
+                 <dd>The HTTP code</dd>
+             </dl>
+             <dl class="message-properties">
+                 <dt>payload.message <span class="property-type">string</span></dt>
+                 <dd>the JSON output of the operation</dd>
+             </dl>
+             <dl class="message-properties">
+                 <dt>payload.headers <span class="property-type">string</span></dt>
+                 <dd>the relevant HTTP response headers</dd>
              </dl>
          </li>
          <li>Errors

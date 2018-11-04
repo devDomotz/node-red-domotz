@@ -13,7 +13,10 @@ Static parameters can be alternatively defined in the configuration of the node.
 
 ## Outputs
 
-* Output: the JSON output of the operation, if any
+* Output: 
+  * payload.code: The HTTP code
+  * message: the JSON output of the operation
+  * headers: the relevant HTTP response headers
 * Errors:
   * payload.code: The HTTP error code
   * payload.message: The HTTP response content
