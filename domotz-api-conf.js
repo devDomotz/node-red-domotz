@@ -25,8 +25,11 @@ module.exports = function (RED) {
         let node = this;
         node.endpoint = n.endpoint;
         node.name = n.name;
-        node.key = n.key;
     }
 
-    RED.nodes.registerType("domotz-api-conf", RemoteServerNode);
+    RED.nodes.registerType("domotz-api-conf", RemoteServerNode, {
+        credentials: {
+            key: {type: "text"}
+        }
+    });
 };

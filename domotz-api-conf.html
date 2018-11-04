@@ -3,8 +3,10 @@
         category: 'config',
         defaults: {
             name: {value: "Name", required: true},
-            endpoint: {value: "https://", required: true},
-            key: {value: "", required: true}
+            endpoint: {value: "https://", required: true}
+        },
+        credentials: {
+            key: {type: "text"}
         },
         label: function () {
             return this.name;

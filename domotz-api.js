@@ -28,11 +28,12 @@ module.exports = function (RED) {
         let node = this;
 
         node.api = RED.nodes.getNode(config.api);
+        let apiKey = node.api.credentials.key;
 
         let getRequestOptions = function (uri, apiKey, method, body) {
             let options = {
                 headers: {
-                    'X-API-KEY': node.api.key
+                    'X-API-KEY': apiKey
                 },
                 uri: uri
             };
@@ -66,7 +67,7 @@ module.exports = function (RED) {
         node.on('input', function (msg) {
             let operationDetails = config.endpointsMap[config.operation];
 
-            if (!node.api || !node.api.key || !node.api.endpoint || !config.operation || !operationDetails) {
+            if (!node.api || !apiKey || !node.api.endpoint || !config.operation || !operationDetails) {
                 setStatusDisconnected();
                 return;
             }
@@ -86,11 +87,15 @@ module.exports = function (RED) {
             if (operationDetails.hasParams) {
                 if (config.useinputparams && msg.payload.params) {
                     for (let param in msg.payload.params) {
-                        addParameters(param, msg.payload.params[param]);
+                        if (msg.payload.params.hasOwnProperty(param)) {
+                            addParameters(param, msg.payload.params[param]);
+                        }
                     }
                 } else {
                     for (let param in config.parameters) {
-                        addParameters(param, config.parameters[param]);
+                        if (config.parameters.hasOwnProperty(param)) {
+                            addParameters(param, config.parameters[param]);
+                        }
                     }
                 }
             }
@@ -109,7 +114,7 @@ module.exports = function (RED) {
 
             node.log("Domotz URL: " + domotzUrl);
 
-            let options = getRequestOptions(domotzUrl, node.api.key, method);
+            let options = getRequestOptions(domotzUrl, apiKey, method);
 
             node.log("performing request to " + domotzUrl);
 
@@ -130,10 +135,10 @@ module.exports = function (RED) {
                 });
         });
 
-        if (!node.api || !node.api.key || !node.api.endpoint) {
+        if (!node.api || !apiKey || !node.api.endpoint) {
             setStatusDisconnected();
         } else {
-            let options = getRequestOptions(url.resolve(node.api.endpoint, 'public-api/v1/user'), node.api.key);
+            let options = getRequestOptions(url.resolve(node.api.endpoint, 'public-api/v1/user'), apiKey);
 
             rq(options)
                 .then(function (user) {
