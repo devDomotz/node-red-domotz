@@ -14,7 +14,10 @@
             oldOperation: {},
             oldName: {},
             oldParameters: {},
-            oldUseinputparams: {}
+            oldUseinputparams: {},
+            hidden: {
+                value: 0
+            }
         },
         inputs: 1,
         outputs: 2,
@@ -148,6 +151,7 @@
         oneditsave: function () {
             var node = this;
             node.parameters = {};
+            node.hidden = !node.hidden;
             var useInputParams = $('#useinputparams');
             if (useInputParams.is(':checked')) {
                 node.useinputparams = true;

@@ -17,7 +17,7 @@
  * Created by Andrea Azzara <a.azzara@domotz.com> on 01/11/2018.
  */
 
-const rq = require('request-promise-native');
+const rq = require('request');
 const url = require('url');
 const querystring = require('querystring');
 
@@ -35,7 +35,8 @@ module.exports = function (RED) {
                 headers: {
                     'X-API-KEY': apiKey
                 },
-                uri: uri
+                uri: uri,
+                json: true
             };
             if (method) {
                 options.method = method;
@@ -116,24 +117,38 @@ module.exports = function (RED) {
 
             node.debug("performing request to " + domotzUrl);
 
-            rq(options)
-                .then(function (rawResult) {
-                    let result = JSON.parse(rawResult);
-                    let payload = {
-                        payload: result
-                    };
-                    node.send([payload, null]);
-                    node.status({fill: "green", shape: "dot", text: "connected"});
-                })
-                .catch(function (err) {
+            rq(options, (error, response, result) => {
+                if (error) {
                     node.debug("Unable to get resource: " + JSON.stringify(err));
                     node.send([null, {
                         payload: {
-                            code: err.response.statusCode,
-                            message: err.error
+                            code: error.response.statusCode,
+                            message: error.error
                         }
                     }]);
-                });
+                    return;
+                }
+                let output = {
+                    payload: {
+                        message: result,
+                        code: response.statusCode
+                    }
+                };
+                if (method.toLowerCase() === 'head') {
+                    output.payload.headers = {};
+                    let expectedResponseHeaders = operationDetails['responses'][response.statusCode.toString()]['headers'];
+                    for (let h in expectedResponseHeaders) {
+                        let responseHeaders = response['headers'];
+                        for (let actualHeader in responseHeaders) {
+                            if (responseHeaders.hasOwnProperty(actualHeader) && actualHeader.toLowerCase() == h.toLowerCase()) {
+                                output.payload.headers[h] = responseHeaders[actualHeader];
+                            }
+                        }
+                    }
+                }
+                node.send([output, null]);
+                node.status({fill: "green", shape: "dot", text: "connected"});
+            })
         });
 
         if (!node.api || !apiKey || !node.api.endpoint) {
@@ -141,16 +156,15 @@ module.exports = function (RED) {
         } else {
             let options = getRequestOptions(url.resolve(node.api.endpoint, 'public-api/v1/user'), apiKey);
 
-            rq(options)
-                .then(function (user) {
-                    let userObj = JSON.parse(user);
-                    node.log("Domotz User id: " + userObj.id + " name: " + userObj.name);
-                    setStatusConnected();
-                })
-                .catch(function () {
+            rq(options, (error, response, userObj) => {
+                if (error) {
                     node.warn("Unable to authenticate");
                     setStatusDisconnected();
-                });
+                    return;
+                }
+                node.log("Domotz User id: " + userObj.id + " name: " + userObj.name);
+                setStatusConnected();
+            })
         }
     }
 
