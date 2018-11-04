@@ -22,6 +22,8 @@
         label: function () {
             return this.name || "domotz-api";
         },
+        inputLabels: "input parameters",
+        outputLabels: ["result","errors"],
         oneditprepare: function () {
             var node = this;
 
@@ -199,10 +201,48 @@
 </script>
 
 <script type="text/x-red" data-help-name="domotz-api">
-    <h5>Domotz Public API wrapper </h5>
 
+    <p>Domotz Public API</p>
 
+    <h3>Details</h3>
+    This node helps performing API calls to the Domotz Public API. API parameters can be set in the configuration section
+    or via node's input. The node automatically converts url and query parameters.
 
+    <h3>Inputs</h3>
 
+    An optional payload with the operation's parameters, e.g.:
+
+    <code>{"params": {"agent:id": "xyz"}}</code>
+
+    Static parameters can be alternatively defined in the
+    configuration of the node. Required parameters are marked with an *.
+
+    <h3>Outputs</h3>
+     <ol class="node-ports">
+         <li>Output
+             <dl class="message-properties">
+                 <dt>payload <span class="property-type">string</span></dt>
+                 <dd>the JSON output of the operation, if any.</dd>
+             </dl>
+         </li>
+         <li>Errors
+             <dl class="message-properties">
+                 <dt>payload.code <span class="property-type">string</span></dt>
+                 <dd>The HTTP error code</dd>
+             </dl>
+             <dl class="message-properties">
+                 <dt>payload.message <span class="property-type">string</span></dt>
+                 <dd>The HTTP response content</dd>
+             </dl>
+         </li>
+     </ol>
+
+    <h3>References</h3>
+
+    <ul>
+        <li><a href="https://portal.domotz.com/developers">Domotz Developers</a> - for more details on the Domotz API</li>
+        <li><a href="https://portal.domotz.com">Domotz Portal</a> - subscribe and get an API-Key</li>
+        <li><a href="https://www.domotz.com">Domotz</a></li>
+    </ul>
 
 </script>

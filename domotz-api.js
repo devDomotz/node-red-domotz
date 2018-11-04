@@ -112,11 +112,9 @@ module.exports = function (RED) {
                 return;
             }
 
-            node.log("Domotz URL: " + domotzUrl);
-
             let options = getRequestOptions(domotzUrl, apiKey, method);
 
-            node.log("performing request to " + domotzUrl);
+            node.debug("performing request to " + domotzUrl);
 
             rq(options)
                 .then(function (rawResult) {
@@ -128,9 +126,12 @@ module.exports = function (RED) {
                     node.status({fill: "green", shape: "dot", text: "connected"});
                 })
                 .catch(function (err) {
-                    node.warn("Unable to get " + err);
+                    node.debug("Unable to get resource: " + JSON.stringify(err));
                     node.send([null, {
-                        payload: err.response.statusCode
+                        payload: {
+                            code: err.response.statusCode,
+                            message: err.error
+                        }
                     }]);
                 });
         });
