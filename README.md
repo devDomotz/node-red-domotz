@@ -26,3 +26,10 @@ Static parameters can be alternatively defined in the configuration of the node.
 [https://portal.domotz.com/developers]Domotz Developers</a> - for more details on the Domotz API
 [https://portal.domotz.com]Domotz Portal - subscribe and get an API-Key
 [https://www.domotz.com]Domotz
+
+## Screenshots
+
+![Alt text](screenshots/example_flow.png?raw=true "Flow Example")
+
+
+![Alt text](screenshots/example_charts.png?raw=true "Chart Example")
