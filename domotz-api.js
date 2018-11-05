@@ -119,7 +119,7 @@ module.exports = function (RED) {
 
             rq(options, (error, response, result) => {
                 if (error) {
-                    node.debug("Unable to get resource: " + JSON.stringify(err));
+                    node.debug("Unable to get resource: " + JSON.stringify(error));
                     node.send([null, {
                         payload: {
                             code: error.response.statusCode,
