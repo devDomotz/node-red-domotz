@@ -15,8 +15,8 @@ Static parameters can be alternatively defined in the configuration of the node.
 
 * Output: 
   * payload.code: The HTTP code
-  * message: the JSON output of the operation
-  * headers: the relevant HTTP response headers
+  * payload.message: the JSON output of the operation
+  * payload.headers: the relevant HTTP response headers
 * Errors:
   * payload.code: The HTTP error code
   * payload.message: The HTTP response content
@@ -24,7 +24,7 @@ Static parameters can be alternatively defined in the configuration of the node.
 ## References
 
 
-[Domotz Developers](https://portal.domotz.com/developers)- more details on the Domotz API
+[Domotz Developers](https://portal.domotz.com/developers) - Domotz API Documentation
 
 [Domotz Portal](https://portal.domotz.com) - subscribe and get an API-Key
 
