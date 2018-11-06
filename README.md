@@ -7,7 +7,7 @@ or via node's input. The node automatically converts url and query parameters.
 
 An optional payload with the operation's parameters, e.g.:
 
-```{"params": {"agent:id": "xyz"}}```
+```{"params": {"agent_id": "xyz"}}```
 
 Static parameters can be alternatively defined in the configuration of the node. Required parameters are marked with an *.
 
