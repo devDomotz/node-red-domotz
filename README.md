@@ -33,12 +33,18 @@ Static parameters can be alternatively defined in the configuration of the node.
 ## Screenshots
 
 Node configuration
+
+
 <img src="screenshots/example_conf.png?raw=true" width="450">
 
 
 Flow example
+
+
 <img src="screenshots/example_flow.png?raw=true" width="450">
 
 
 Visualization (with node red dashboard)
+
+
 <img src="screenshots/example_charts.png?raw=true" width="450">
