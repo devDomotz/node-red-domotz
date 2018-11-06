@@ -37,12 +37,14 @@ Node configuration
 
 <img src="screenshots/example_conf.png?raw=true" width="450">
 
+------------------------
 
 Flow example
 
 
 <img src="screenshots/example_flow.png?raw=true" width="450">
 
+------------------------
 
 Visualization (with node red dashboard)
 
