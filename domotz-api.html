@@ -31,7 +31,11 @@
             var node = this;
 
             var clone = function (v) {
-                return JSON.parse(JSON.stringify(v));
+                try {
+                    return JSON.parse(JSON.stringify(v));
+                } catch (e) {
+                    return null;
+                }
             };
 
             node.oldOperation = clone(node.operation);
