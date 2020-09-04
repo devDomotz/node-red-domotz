@@ -131,7 +131,9 @@ module.exports = function (RED) {
                 let output = {
                     payload: {
                         message: result,
-                        code: response.statusCode
+                        code: response.statusCode,
+                        configParams: config.parameters,
+                        inputParams: msg.payload && msg.payload.params,
                     }
                 };
                 if (method.toLowerCase() === 'head') {
