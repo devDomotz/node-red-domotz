@@ -36,7 +36,7 @@ module.exports = function (RED) {
                     'X-API-KEY': apiKey
                 },
                 uri: uri,
-                json: true
+                encoding: null
             };
             if (method) {
                 options.method = method;
@@ -128,6 +128,12 @@ module.exports = function (RED) {
                     }]);
                     return;
                 }
+                try {
+                    result = JSON.parse(result);
+                } catch (e) {
+                    node.log("result is not JSON");
+                }
+
                 let output = {
                     payload: {
                         message: result,
