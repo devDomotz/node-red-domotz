@@ -28,6 +28,6 @@
   },
   "repository": {
     "type" : "git",
-    "url" : "https://github.com/devDomotz/node-red-domotz.git"
+    "url" : "https://github.com/domotz/node-red-domotz.git"
   }
 }
