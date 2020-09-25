@@ -44,11 +44,11 @@ Node configuration
 Flow example
 
 
-<img src="screenshots/example_flow.png?raw=true" width="450">
+<img src="screenshots/example_flow.png?raw=true" width="800">
 
 ------------------------
 
 Visualization (with node red dashboard)
 
 
-<img src="screenshots/example_charts.png?raw=true" width="450">
+<img src="screenshots/example_charts.png?raw=true" width="800">
