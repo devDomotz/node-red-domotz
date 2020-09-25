@@ -138,6 +138,7 @@ module.exports = function (RED) {
                     payload: {
                         message: result,
                         code: response.statusCode,
+                        headers: response.headers,
                         configParams: config.parameters,
                         inputParams: msg.payload && msg.payload.params,
                     }
