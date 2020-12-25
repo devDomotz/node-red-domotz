@@ -59,7 +59,7 @@ module.exports = function (RED) {
 
         let isQueryParam = function (paramName, operationDetails) {
             for (let i = 0; i < operationDetails.parameters.length; i++) {
-                if (operationDetails.parameters[i].name == paramName) {
+                if (operationDetails.parameters[i].name === paramName) {
                     return (operationDetails.parameters[i].in === 'query');
                 }
             }
@@ -106,7 +106,7 @@ module.exports = function (RED) {
                 domotzUrl = domotzUrl + '?' + queryString;
             }
 
-            if (domotzUrl.indexOf('{') != -1) {
+            if (domotzUrl.indexOf('{') !== -1) {
                 node.send([null, {
                     payload: "Not all URL params converted: " + domotzUrl
                 }]);
@@ -149,7 +149,7 @@ module.exports = function (RED) {
                     for (let h in expectedResponseHeaders) {
                         let responseHeaders = response['headers'];
                         for (let actualHeader in responseHeaders) {
-                            if (responseHeaders.hasOwnProperty(actualHeader) && actualHeader.toLowerCase() == h.toLowerCase()) {
+                            if (responseHeaders.hasOwnProperty(actualHeader) && actualHeader.toLowerCase() === h.toLowerCase()) {
                                 output.payload.headers[h] = responseHeaders[actualHeader];
                             }
                         }
@@ -165,17 +165,15 @@ module.exports = function (RED) {
         } else {
             let options = getRequestOptions(url.resolve(node.api.endpoint, 'public-api/v1/user'), apiKey);
 
-            rq(options, (error, response, userObj) => {
+            rq(options, (error) => {
                 if (error) {
                     node.warn("Unable to authenticate");
                     setStatusDisconnected();
                     return;
                 }
-                node.log("Domotz User id: " + userObj.id + " name: " + userObj.name);
                 setStatusConnected();
             })
         }
     }
-
     RED.nodes.registerType("domotz-api", DomotzApi);
 };
