@@ -1,32 +1,34 @@
 <script type="text/javascript">
     RED.nodes.registerType('domotz-api', {
-        category: 'Domotz',
+        category: 'common',
+        // category: 'Domotz',
         color: '#a6bbcf',
         defaults: {
-            name: {value: ""},
-            api: {value: "", type: "domotz-api-conf"},
+            name: {value: ''},
+            api: {value: '', type: 'domotz-api-conf'},
             operation: {
-                required: true
+                required: true,
             },
             endpointsMap: {},
             parameters: {},
             useinputparams: {},
+            availableEndpoints: [],
             oldOperation: {},
             oldName: {},
             oldParameters: {},
             oldUseinputparams: {},
             hidden: {
-                value: 0
-            }
+                value: 0,
+            },
         },
         inputs: 1,
         outputs: 2,
-        icon: "domotz.png",
+        icon: 'domotz.png',
         label: function () {
-            return this.name || "domotz-api";
+            return this.name || 'domotz-api';
         },
-        inputLabels: "input parameters",
-        outputLabels: ["result","errors"],
+        inputLabels: 'input parameters',
+        outputLabels: ['result', 'errors'],
         oneditprepare: function () {
             var node = this;
 
@@ -43,114 +45,142 @@
             node.oldParameters = clone(node.parameters);
             node.oldUseinputparams = clone(node.useinputparams);
 
+            var confSelect = $('#node-input-api');
+
             var selectOperation = $('#node-input-operation');
             var operationSummary = $('#operation-summary');
             var apiSummary = $('#api-summary');
-            var apiVersion = $('#api-version');
+            var apiUsage = $('#api-usage');
+            var username = $('#username');
             var operationParams = $('#operation-params');
             var operationParamsCheckbox = $('#operation-params-checkbox');
 
-            var availableEndpoints = [];
             var endpointsMap = {};
-            $.getJSON("https://api-eu-west-1-cell-1.domotz.com/public-api/v1/meta/open-api-definition", function (data) {
-                apiVersion.text(data.info.version);
-                apiSummary.text(data.info.title);
 
-                $.each(data.paths, function (path) {
-                    $.each(data.paths[path], function (method) {
-                        var operationDetails = data.paths[path][method];
-
-                        var tag = operationDetails['tags'][0] || 'other';
-                        var opId = tag + '.' + operationDetails['operationId'];
-
-                        availableEndpoints.push(opId);
-                        operationDetails['path'] = path;
-                        operationDetails['method'] = method;
-                        operationDetails['hasParams'] = false;
-                        if (operationDetails.parameters && operationDetails.parameters.length > 0) {
-                            operationDetails['hasParams'] = true;
-                        }
-                        endpointsMap[opId] = operationDetails;
-                        node.endpointsMap = endpointsMap;
-                    });
+            function disableInputParams(val) {
+                operationParams.children().each(function () {
+                    $($(this).children('input')).prop('disabled', val);
                 });
-                availableEndpoints.sort();
+            }
 
-                selectOperation.append($('<option disabled selected value> - select an option - </option>'));
-
-                var disableInputParams = function (val) {
-                    var operationParams = $('#operation-params');
-                    operationParams.children().each(function () {
-                        $($(this).children('input')).prop('disabled', val);
-                    })
-                };
-
-                var createCheckbox = function () {
-                    var checkboxRow = $('<div class="form-row"></div>');
-                    var checkboxInput = $('<input type="checkbox">');
-                    var checkboxLabel = $('<label></label>');
-                    checkboxLabel.text("Use node input params");
-                    checkboxInput.attr('id', 'useinputparams');
-                    if (node.useinputparams) {
-                        checkboxInput.prop("checked", true);
+            function createCheckbox() {
+                var checkboxRow = $('<div class="form-row"></div>');
+                var checkboxInput = $('<input type="checkbox">');
+                var checkboxLabel = $('<label></label>');
+                checkboxLabel.text('Use node input params');
+                checkboxInput.attr('id', 'useinputparams');
+                if (node.useinputparams) {
+                    checkboxInput.prop('checked', true);
+                }
+                checkboxRow.append(checkboxLabel);
+                checkboxRow.append(checkboxInput);
+                operationParamsCheckbox.append(checkboxRow);
+                checkboxInput.change(function () {
+                    if ($(this).is(':checked')) {
+                        disableInputParams(true);
+                    } else {
+                        disableInputParams(false);
                     }
-                    checkboxRow.append(checkboxLabel);
-                    checkboxRow.append(checkboxInput);
-                    operationParamsCheckbox.append(checkboxRow);
-                    checkboxInput.change(function () {
-                        if ($(this).is(':checked')) {
-                            disableInputParams(true);
-                        } else {
-                            disableInputParams(false);
-                        }
-                    });
-                };
+                });
+            }
 
-                var setOperationSummary = function () {
-                    operationSummary.text(node.endpointsMap[node.operation]['summary']);
+            selectOperation.change(function () {
+                node.operation = $('#node-input-operation option:selected').text();
+                setOperationSummary();
+            });
 
-                    var parameters = node.endpointsMap[node.operation]['parameters'];
-                    operationParams.text("");
-                    operationParamsCheckbox.text("");
-                    if (parameters) {
-                        createCheckbox();
-
-                        $.each(parameters, function (idx, param) {
-                            var formRow = $('<div class="form-row"></div>');
-                            var label = $('<label></label>');
-                            label.text(param.name + (param.required ? '*' : ''));
-                            var input = $('<input type="text">');
-                            input.attr('placeholder', param.description);
-                            input.attr('id', param.name);
-                            formRow.attr('title', param.description);
-                            if (node.parameters !== undefined) {
-                                var val = node.parameters[param.name] || null;
-                                if (val !== null) {
-                                    input.val(val);
-                                }
-                            }
-                            formRow.append(label);
-                            formRow.append(input);
-                            formRow.attr('id', param.name);
-                            operationParams.append(formRow);
-                        });
-                        if (node.useinputparams) {
-                            disableInputParams(true);
-                        }
-                    }
-                };
-
-                $.each(availableEndpoints, function (index, endpoint) {
+            function initOperationSelector() {
+                if (!node.endpointsMap || !node.availableEndpoints) {
+                    return;
+                }
+                selectOperation.append($('<option></option>')
+                    .attr('disabled', "true")
+                    .attr('selected', "true")
+                    .text("-- select a method --"));
+                $.each(node.availableEndpoints, function (index, endpoint) {
                     selectOperation.append($('<option></option>').attr('value', endpoint).attr('selected', node.operation === endpoint).text(endpoint));
                     if (node.operation === endpoint) {
                         setOperationSummary();
                     }
                 });
-                selectOperation.change(function () {
-                    node.operation = $('#node-input-operation option:selected').text();
-                    setOperationSummary();
-                });
-            })
+            }
+
+            var setOperationSummary = function () {
+                if (!node.endpointsMap || !node.operation) {
+                    return;
+                }
+                operationSummary.html(node.endpointsMap[node.operation]['summary']);
+
+                var parameters = node.endpointsMap[node.operation]['parameters'];
+                operationParams.text('');
+                operationParamsCheckbox.text('');
+                if (parameters) {
+                    createCheckbox();
+
+                    $.each(parameters, function (idx, param) {
+                        var formRow = $('<div class="form-row"></div>');
+                        var label = $('<label></label>');
+                        label.text(param.name + (param.required ? '*' : ''));
+                        var input = $('<input type="text">');
+                        input.attr('placeholder', param.description);
+                        input.attr('id', param.name);
+                        formRow.attr('title', param.description);
+                        if (node.parameters) {
+                            var val = node.parameters[param.name] || null;
+                            if (val !== null) {
+                                input.val(val);
+                            }
+                        }
+                        formRow.append(label);
+                        formRow.append(input);
+                        formRow.attr('id', param.name);
+                        operationParams.append(formRow);
+                    });
+                    if (node.useinputparams) {
+                        disableInputParams(true);
+                    }
+                }
+            };
+
+            if (node.operation) {
+                initOperationSelector();
+            }
+
+            function resetInterface() {
+                apiSummary.empty();
+                username.empty();
+                apiUsage.empty();
+                selectOperation.empty();
+                operationParamsCheckbox.empty();
+                operationParams.empty();
+                operationSummary.empty();
+                node.operation = null;
+                node.useinputparams = null;
+                node.parameters = null;
+            }
+
+            confSelect.change(function () {
+                var configNodeId = confSelect.val();
+                console.log(configNodeId);
+                if (configNodeId && configNodeId !== '_ADD_') {
+                    node.configNodeId = configNodeId;
+                    $.getJSON('domotz-api-info?conf_node=' + configNodeId, function (apiInfo) {
+                        apiSummary.text(apiInfo.title + " - v" + apiInfo.version);
+                        username.text("User: " + apiInfo.username);
+                        apiUsage.text("Daily usage: " + apiInfo.usage + '/' +  apiInfo.limit);
+                        endpointsMap = apiInfo.endpointsMap;
+                        node.endpointsMap = endpointsMap;
+                        node.availableEndpoints = apiInfo.availableEndpoints;
+                        selectOperation.empty();
+                        initOperationSelector();
+                    }).fail(function () {
+                        resetInterface();
+                        apiSummary.text("Unable to retrieve API description");
+                    });
+                } else {
+                    resetInterface();
+                }
+            });
         },
         oneditsave: function () {
             var node = this;
@@ -165,7 +195,7 @@
             var operationParams = $('#operation-params');
             operationParams.children().each(function () {
                 node.parameters[this.id] = $($(this).children('input')).val();
-            })
+            });
         },
         oneditcancel: function () {
             var node = this;
@@ -176,7 +206,7 @@
             node.name = clone(node.oldName);
             node.parameters = clone(node.oldParameters);
             node.useinputparams = clone(node.oldUseinputparams);
-        }
+        },
     });
 </script>
 
@@ -184,7 +214,8 @@
 
     <div>
         <h4 id="api-summary"></h4>
-        <p><span>Version: </span> <span id="api-version"></span></p>
+        <p id="username"></p>
+        <p id="api-usage"></p>
     </div>
 
     <div class="form-row">
@@ -200,7 +231,7 @@
         <select id="node-input-operation"></select>
     </div>
 
-    <h4 id="operation-summary"></h4>
+    <h4 id="operation-summary" style="max-width: 400px;"></h4>
 
     <div id="operation-params-checkbox"></div>
     <div id="operation-params"></div>

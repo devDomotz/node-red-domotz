@@ -22,21 +22,35 @@ const url = require('url');
 const querystring = require('querystring');
 
 module.exports = function (RED) {
-    function DomotzApi(config) {
+    function DomotzApi (config) {
         RED.nodes.createNode(this, config);
 
         let node = this;
 
+        let setStatusDisconnected = function () {
+            node.status({fill: 'red', shape: 'ring', text: 'disconnected'});
+        };
+
+        let setStatusConnected = function () {
+            node.status({fill: 'green', shape: 'dot', text: 'connected'});
+        };
+
+
         node.api = RED.nodes.getNode(config.api);
+        if (!node.api) {
+            setStatusDisconnected();
+            return;
+        }
+
         let apiKey = node.api.credentials.key;
 
         let getRequestOptions = function (uri, apiKey, method, body) {
             let options = {
                 headers: {
-                    'X-API-KEY': apiKey
+                    'X-API-KEY': apiKey,
                 },
                 uri: uri,
-                encoding: null
+                encoding: null,
             };
             if (method) {
                 options.method = method;
@@ -48,14 +62,6 @@ module.exports = function (RED) {
             return options;
         };
 
-
-        let setStatusDisconnected = function () {
-            node.status({fill: "red", shape: "ring", text: "disconnected"});
-        };
-
-        let setStatusConnected = function () {
-            node.status({fill: "green", shape: "dot", text: "connected"});
-        };
 
         let isQueryParam = function (paramName, operationDetails) {
             for (let i = 0; i < operationDetails.parameters.length; i++) {
@@ -107,31 +113,35 @@ module.exports = function (RED) {
             }
 
             if (domotzUrl.indexOf('{') !== -1) {
-                node.send([null, {
-                    payload: "Not all URL params converted: " + domotzUrl
-                }]);
+                node.send([
+                    null, {
+                        payload: 'Not all URL params converted: ' + domotzUrl,
+                    },
+                ]);
                 return;
             }
 
             let options = getRequestOptions(domotzUrl, apiKey, method);
 
-            node.debug("performing request to " + domotzUrl);
+            node.debug('performing request to ' + domotzUrl);
 
             rq(options, (error, response, result) => {
                 if (error) {
-                    node.debug("Unable to get resource: " + JSON.stringify(error));
-                    node.send([null, {
-                        payload: {
-                            code: error.response.statusCode,
-                            message: error.error
-                        }
-                    }]);
+                    node.debug('Unable to get resource: ' + JSON.stringify(error));
+                    node.send([
+                        null, {
+                            payload: {
+                                code: error.response.statusCode,
+                                message: error.error,
+                            },
+                        },
+                    ]);
                     return;
                 }
                 try {
                     result = JSON.parse(result);
                 } catch (e) {
-                    node.log("result is not JSON");
+                    node.log('result is not JSON');
                 }
 
                 let output = {
@@ -141,7 +151,7 @@ module.exports = function (RED) {
                         headers: response.headers,
                         configParams: config.parameters,
                         inputParams: msg.payload && msg.payload.params,
-                    }
+                    },
                 };
                 if (method.toLowerCase() === 'head') {
                     output.payload.headers = {};
@@ -156,8 +166,8 @@ module.exports = function (RED) {
                     }
                 }
                 node.send([output, null]);
-                node.status({fill: "green", shape: "dot", text: "connected"});
-            })
+                node.status({fill: 'green', shape: 'dot', text: 'connected'});
+            });
         });
 
         if (!node.api || !apiKey || !node.api.endpoint) {
@@ -167,13 +177,14 @@ module.exports = function (RED) {
 
             rq(options, (error) => {
                 if (error) {
-                    node.warn("Unable to authenticate");
+                    node.warn('Unable to authenticate');
                     setStatusDisconnected();
                     return;
                 }
                 setStatusConnected();
-            })
+            });
         }
     }
-    RED.nodes.registerType("domotz-api", DomotzApi);
+
+    RED.nodes.registerType('domotz-api', DomotzApi);
 };
