@@ -18,11 +18,59 @@
  */
 
 const request = require('request');
-const NA = 'N/A';
+
+function getAPIInfo (endpoint, key, cb) {
+    let openAPIDef = endpoint + 'meta/open-api-definition';
+
+    request(openAPIDef, {json: true}, (error, res, body) => {
+        if (error || res.statusCode !== 200) {
+            cb(true);
+        }
+
+        let apiVersion = body.info.version;
+        let apiTitle = body.info.title;
+        let availableEndpoints = [];
+        let endpointsMap = {};
+
+        for (const [path, options] of Object.entries(body.paths)) {
+            for (const [method, operationDetails] of Object.entries(options)) {
+                var tag = operationDetails['tags'][0] || 'other';
+                var opId = tag + '.' + operationDetails['operationId'];
+                availableEndpoints.push(opId);
+                operationDetails['path'] = path;
+                operationDetails['method'] = method;
+                operationDetails['hasParams'] = false;
+                if (operationDetails.parameters && operationDetails.parameters.length > 0) {
+                    operationDetails['hasParams'] = true;
+                }
+                endpointsMap[opId] = operationDetails;
+            }
+        }
+        availableEndpoints.sort();
+
+        request({
+            headers: {
+                'X-API-KEY': key,
+            },
+            json: true,
+            uri: endpoint + 'meta/usage',
+        }, (error, response, data) => {
+            if (error || response.statusCode !== 200) {
+                return cb(true);
+            }
+            let dailyLimit = data.daily_limit;
+            let dailyUsage = data.daily_usage;
+
+            cb(null, apiVersion, apiTitle, availableEndpoints, endpointsMap, dailyLimit, dailyUsage);
+        });
+
+
+    });
+}
 
 module.exports = function (RED) {
 
-    function RemoteServerNode(n) {
+    function RemoteServerNode (n) {
         RED.nodes.createNode(this, n);
 
         let node = this;
@@ -31,95 +79,41 @@ module.exports = function (RED) {
 
         node.endpoint = n.endpoint;
         node.name = n.name;
-        node.apiVersion = ''
-        node.apiTitle = ''
-
-        node.dailyLimit = NA;
-        node.dailyUsage = NA;
-
-        let openAPIDef = node.endpoint + "meta/open-api-definition";
-
-        request(openAPIDef, {json: true}, (error, res, body) => {
-            if (error) {
-                return  console.log(error)
-            }
-
-            if (!error && res.statusCode === 200) {
-                node.apiVersion = body.info.version;
-                node.apiTitle = body.info.title;
-
-                for (const [path, options] of Object.entries(body.paths)) {
-                    for (const [method, operationDetails] of Object.entries(options)) {
-                        var tag = operationDetails['tags'][0] || 'other';
-                        var opId = tag + '.' + operationDetails['operationId'];
-                        node.availableEndpoints.push(opId);
-                        operationDetails['path'] = path;
-                        operationDetails['method'] = method;
-                        operationDetails['hasParams'] = false;
-                        if (operationDetails.parameters && operationDetails.parameters.length > 0) {
-                            operationDetails['hasParams'] = true;
-                        }
-                        node.endpointsMap[opId] = operationDetails;
-                    }
-                }
-                node.availableEndpoints.sort();
-            }
-        });
-
-        if (node.endpoint && node.credentials.key) {
-
-            let options = {
-                headers: {
-                    'X-API-KEY': node.credentials.key,
-                },
-                json: true,
-                uri: node.endpoint + 'meta/usage',
-            };
-
-            options.uri = node.endpoint + 'user';
-            request(options, (error, response, data) => {
-                if (error || response.statusCode !== 200) {
-                    return
-                }
-                node.username = data.name;
-            });
-
-            options.uri = node.endpoint + 'meta/usage';
-            request(options, (error, response, data) => {
-                if (error || response.statusCode !== 200) {
-                    return
-                }
-                node.dailyLimit = data.daily_limit;
-                node.dailyUsage = data.daily_usage;
-            });
-        }
     }
 
-    RED.nodes.registerType("domotz-api-conf", RemoteServerNode, {
+    RED.nodes.registerType('domotz-api-conf', RemoteServerNode, {
         credentials: {
-            key: {type: "text"}
-        }
+            key: {type: 'text'},
+        },
     });
 
-    function extractConfNodeID (req) {
-        return RED.nodes.getNode(req.query.conf_node);
-    }
-
-    function domotzAPIINfo(req, res) {
-        let confNode = extractConfNodeID(req);
-        if (!confNode) {
-            return res.json()
+    function domotzAPIINfo (req, res) {
+        let endpoint;
+        let key;
+        if (req.query.conf_node) {
+            let confNode = RED.nodes.getNode(req.query.conf_node);
+            endpoint = confNode.endpoint;
+            key = confNode.credentials.key;
+        } else {
+            endpoint = req.query.endpoint;
+            key = req.query.key;
         }
-        return res.json({
-            availableEndpoints: confNode.availableEndpoints,
-            endpointsMap: confNode.endpointsMap,
-            version: confNode.apiVersion,
-            title: confNode.apiTitle,
-            limit: confNode.dailyLimit,
-            usage: confNode.dailyUsage,
-            username: confNode.username,
-        });
+
+        getAPIInfo(endpoint, key,
+            function (error, apiVersion, apiTitle, availableEndpoints, endpointsMap, dailyLimit, dailyUsage) {
+                if (error) {
+                    return res.json();
+                }
+                return res.json({
+                    availableEndpoints: availableEndpoints,
+                    endpointsMap: endpointsMap,
+                    version: apiVersion,
+                    title: apiTitle,
+                    limit: dailyLimit,
+                    usage: dailyUsage,
+                });
+            });
     }
 
-    RED.httpAdmin.get("/domotz-api-info", RED.auth.needsPermission('domotz.read'), domotzAPIINfo);
+    RED.httpAdmin.get('/domotz-api-info', RED.auth.needsPermission('domotz.read'), domotzAPIINfo);
 };

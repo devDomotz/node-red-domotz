@@ -7,6 +7,7 @@
             name: {value: ''},
             api: {value: '', type: 'domotz-api-conf'},
             operation: {
+                value: '',
                 required: true,
             },
             endpointsMap: {},
@@ -30,8 +31,8 @@
         inputLabels: 'input parameters',
         outputLabels: ['result', 'errors'],
         oneditprepare: function () {
-            var node = this;
 
+            var node = this;
             var clone = function (v) {
                 try {
                     return JSON.parse(JSON.stringify(v));
@@ -40,12 +41,19 @@
                 }
             };
 
-            node.oldOperation = clone(node.operation);
-            node.oldName = clone(node.name);
-            node.oldParameters = clone(node.parameters);
-            node.oldUseinputparams = clone(node.useinputparams);
+
+            // if (node.oldOperation) {
+            //     node.operation = clone(node.oldOperation);
+            // }
+            console.log('NODE OPERATION IS ' + node.operation);
+
+            // node.oldOperation = clone(node.operation);
+            // node.oldName = clone(node.name);
+            // node.oldParameters = clone(node.parameters);
+            // node.oldUseinputparams = clone(node.useinputparams);
 
             var confSelect = $('#node-input-api');
+            var confIDVal = confSelect.val();
 
             var selectOperation = $('#node-input-operation');
             var operationSummary = $('#operation-summary');
@@ -55,15 +63,13 @@
             var operationParams = $('#operation-params');
             var operationParamsCheckbox = $('#operation-params-checkbox');
 
-            var endpointsMap = {};
-
-            function disableInputParams(val) {
+            function disableInputParams (val) {
                 operationParams.children().each(function () {
                     $($(this).children('input')).prop('disabled', val);
                 });
             }
 
-            function createCheckbox() {
+            function createCheckbox () {
                 var checkboxRow = $('<div class="form-row"></div>');
                 var checkboxInput = $('<input type="checkbox">');
                 var checkboxLabel = $('<label></label>');
@@ -84,22 +90,28 @@
                 });
             }
 
-            selectOperation.change(function () {
-                node.operation = $('#node-input-operation option:selected').text();
-                setOperationSummary();
+            selectOperation.change(function (v) {
+                var currentSelection = $('#node-input-operation option:selected').text();
+                if (currentSelection && currentSelection !== node.operation) {
+                    node.operation = currentSelection;
+                    setOperationSummary();
+                }
             });
 
-            function initOperationSelector() {
+            function initOperationSelector () {
                 if (!node.endpointsMap || !node.availableEndpoints) {
                     return;
                 }
+                selectOperation.empty();
                 selectOperation.append($('<option></option>')
-                    .attr('disabled', "true")
-                    .attr('selected', "true")
-                    .text("-- select a method --"));
+                    .attr('disabled', 'true')
+                    .attr('selected', 'true')
+                    .text('-- select a method --'));
                 $.each(node.availableEndpoints, function (index, endpoint) {
-                    selectOperation.append($('<option></option>').attr('value', endpoint).attr('selected', node.operation === endpoint).text(endpoint));
-                    if (node.operation === endpoint) {
+                    selectOperation.append(
+                        $('<option></option>').attr('value', endpoint).attr('selected', node.operation === endpoint)
+                            .text(endpoint));
+                    if (node.operation && node.operation === endpoint) {
                         setOperationSummary();
                     }
                 });
@@ -142,11 +154,9 @@
                 }
             };
 
-            if (node.operation) {
-                initOperationSelector();
-            }
+            loadAvailableEndpoints();
 
-            function resetInterface() {
+            function resetInterface () {
                 apiSummary.empty();
                 username.empty();
                 apiUsage.empty();
@@ -154,31 +164,50 @@
                 operationParamsCheckbox.empty();
                 operationParams.empty();
                 operationSummary.empty();
-                node.operation = null;
-                node.useinputparams = null;
-                node.parameters = null;
+                // node.operation = null;
+                // node.useinputparams = null;
+                // node.parameters = null;
             }
 
-            confSelect.change(function () {
+            function loadAvailableEndpoints () {
+
                 var configNodeId = confSelect.val();
-                console.log(configNodeId);
                 if (configNodeId && configNodeId !== '_ADD_') {
                     node.configNodeId = configNodeId;
-                    $.getJSON('domotz-api-info?conf_node=' + configNodeId, function (apiInfo) {
-                        apiSummary.text(apiInfo.title + " - v" + apiInfo.version);
-                        username.text("User: " + apiInfo.username);
-                        apiUsage.text("Daily usage: " + apiInfo.usage + '/' +  apiInfo.limit);
-                        endpointsMap = apiInfo.endpointsMap;
-                        node.endpointsMap = endpointsMap;
-                        node.availableEndpoints = apiInfo.availableEndpoints;
-                        selectOperation.empty();
-                        initOperationSelector();
-                    }).fail(function () {
+
+                    var configNode = RED.nodes.node(configNodeId);
+                    var qs = '?'
+                    if (configNode.credentials) {
+                        qs += 'endpoint=' + configNode.endpoint + '&key=' + configNode.credentials.key;
+                    } else {
+                        qs += 'conf_node=' + configNodeId;
+                    }
+                    $.getJSON('domotz-api-info' + qs,
+                        function (apiInfo) {
+                            apiSummary.text(apiInfo.title + ' - v' + apiInfo.version);
+                            if (apiInfo.usage && apiInfo.limit) {
+                                apiUsage.text('Daily usage: ' + apiInfo.usage + '/' + apiInfo.limit);
+                            } else {
+                                apiUsage.text('Daily usage: N/A');
+                            }
+                            node.endpointsMap = apiInfo.endpointsMap;
+                            node.availableEndpoints = apiInfo.availableEndpoints;
+
+                            initOperationSelector();
+                        }).fail(function () {
                         resetInterface();
-                        apiSummary.text("Unable to retrieve API description");
+                        apiSummary.text('Unable to retrieve API description');
                     });
                 } else {
                     resetInterface();
+                }
+            }
+
+            confSelect.change(function () {
+                var currentSelection = confSelect.val();
+                if (confIDVal !== currentSelection) {
+                    confIDVal = currentSelection;
+                    loadAvailableEndpoints();
                 }
             });
         },
@@ -202,10 +231,10 @@
             var clone = function (v) {
                 return JSON.parse(JSON.stringify(v));
             };
-            node.operation = clone(node.oldOperation);
-            node.name = clone(node.oldName);
-            node.parameters = clone(node.oldParameters);
-            node.useinputparams = clone(node.oldUseinputparams);
+            // node.operation = clone(node.oldOperation);
+            // node.name = clone(node.oldName);
+            // node.parameters = clone(node.oldParameters);
+            // node.useinputparams = clone(node.oldUseinputparams);
         },
     });
 </script>
