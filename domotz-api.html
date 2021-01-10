@@ -1,7 +1,14 @@
 <script type="text/javascript">
+    var clone = function (v) {
+        try {
+            return JSON.parse(JSON.stringify(v));
+        } catch (e) {
+            return null;
+        }
+    };
+
     RED.nodes.registerType('domotz-api', {
-        category: 'common',
-        // category: 'Domotz',
+        category: 'Domotz',
         color: '#a6bbcf',
         defaults: {
             name: {value: ''},
@@ -33,24 +40,11 @@
         oneditprepare: function () {
 
             var node = this;
-            var clone = function (v) {
-                try {
-                    return JSON.parse(JSON.stringify(v));
-                } catch (e) {
-                    return null;
-                }
-            };
 
-
-            // if (node.oldOperation) {
-            //     node.operation = clone(node.oldOperation);
-            // }
-            console.log('NODE OPERATION IS ' + node.operation);
-
-            // node.oldOperation = clone(node.operation);
-            // node.oldName = clone(node.name);
-            // node.oldParameters = clone(node.parameters);
-            // node.oldUseinputparams = clone(node.useinputparams);
+            node.oldOperation = clone(node.operation);
+            node.oldName = clone(node.name);
+            node.oldParameters = clone(node.parameters);
+            node.oldUseinputparams = clone(node.useinputparams);
 
             var confSelect = $('#node-input-api');
             var confIDVal = confSelect.val();
@@ -62,6 +56,7 @@
             var username = $('#username');
             var operationParams = $('#operation-params');
             var operationParamsCheckbox = $('#operation-params-checkbox');
+            var operationParamsOptions = $('#operation-params-options');
 
             function disableInputParams (val) {
                 operationParams.children().each(function () {
@@ -70,18 +65,10 @@
             }
 
             function createCheckbox () {
-                var checkboxRow = $('<div class="form-row"></div>');
-                var checkboxInput = $('<input type="checkbox">');
-                var checkboxLabel = $('<label></label>');
-                checkboxLabel.text('Use node input params');
-                checkboxInput.attr('id', 'useinputparams');
                 if (node.useinputparams) {
-                    checkboxInput.prop('checked', true);
+                    operationParamsCheckbox.prop('checked', true);
                 }
-                checkboxRow.append(checkboxLabel);
-                checkboxRow.append(checkboxInput);
-                operationParamsCheckbox.append(checkboxRow);
-                checkboxInput.change(function () {
+                operationParamsCheckbox.change(function () {
                     if ($(this).is(':checked')) {
                         disableInputParams(true);
                     } else {
@@ -90,7 +77,7 @@
                 });
             }
 
-            selectOperation.change(function (v) {
+            selectOperation.change(function () {
                 var currentSelection = $('#node-input-operation option:selected').text();
                 if (currentSelection && currentSelection !== node.operation) {
                     node.operation = currentSelection;
@@ -127,6 +114,7 @@
                 operationParams.text('');
                 operationParamsCheckbox.text('');
                 if (parameters) {
+                    operationParamsOptions.show()
                     createCheckbox();
 
                     $.each(parameters, function (idx, param) {
@@ -151,6 +139,8 @@
                     if (node.useinputparams) {
                         disableInputParams(true);
                     }
+                } else {
+                    operationParamsOptions.hide();
                 }
             };
 
@@ -228,13 +218,10 @@
         },
         oneditcancel: function () {
             var node = this;
-            var clone = function (v) {
-                return JSON.parse(JSON.stringify(v));
-            };
-            // node.operation = clone(node.oldOperation);
-            // node.name = clone(node.oldName);
-            // node.parameters = clone(node.oldParameters);
-            // node.useinputparams = clone(node.oldUseinputparams);
+            node.operation = clone(node.oldOperation);
+            node.name = clone(node.oldName);
+            node.parameters = clone(node.oldParameters);
+            node.useinputparams = clone(node.oldUseinputparams);
         },
     });
 </script>
@@ -262,9 +249,12 @@
 
     <h4 id="operation-summary" style="max-width: 400px;"></h4>
 
-    <div id="operation-params-checkbox"></div>
-    <div id="operation-params"></div>
+    <div id="operation-params-options" style="visible: false" class="form-row">
+        <label for="other-options">Use node input params</label>
+        <input type="checkbox" name="other-options" id="operation-params-checkbox">
+    </div>
 
+    <div id="operation-params"></div>
 
 </script>
 
