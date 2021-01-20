@@ -7,6 +7,30 @@
         }
     };
 
+    var PARAMS_OP_MAP = {
+        'agent_id': 'agent.listAgents',
+        'device_id': 'device.listDevices',
+        'sensor_id': 'eyes.listEyesSNMP',
+    };
+
+    var PARAMETER_OPTIONS = Object.freeze({
+        IDS: 'IDS',
+        INPUT_PARAMS: 'INPUT_PARAMS',
+        BROWSE: 'BROWSE',
+    });
+
+    var cache = {
+        'agent_id': {},
+        'device_id': {},
+        'sensor_id': {},
+    };
+
+    function capitalizeFirstLetter (string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+
+    var BROWSABLE_IDs = Object.keys(PARAMS_OP_MAP);
+
     RED.nodes.registerType('domotz-api', {
         category: 'Domotz',
         color: '#a6bbcf',
@@ -20,11 +44,13 @@
             endpointsMap: {},
             parameters: {},
             useinputparams: {},
+            parameterOptions: {},
             availableEndpoints: [],
             oldOperation: {},
             oldName: {},
             oldParameters: {},
             oldUseinputparams: {},
+            oldParameterOptions: {},
             hidden: {
                 value: 0,
             },
@@ -41,10 +67,22 @@
 
             var node = this;
 
+            if (!node.parameters) {
+                node.parameters = {};
+            }
+            if (!node.parameterOptions) {
+                node.parameterOptions = PARAMETER_OPTIONS.BROWSE;
+            }
+
             node.oldOperation = clone(node.operation);
             node.oldName = clone(node.name);
             node.oldParameters = clone(node.parameters);
             node.oldUseinputparams = clone(node.useinputparams);
+            node.oldParameterOptions = clone(node.parameterOptions);
+            if (node.useinputparams === true || node.useinputparams === false) {
+                node.parameterOptions = node.useinputparams ? 'INPUT_PARAMS' : 'IDS';
+                node.useinputparams = null;
+            }
 
             var confSelect = $('#node-input-api');
             var confIDVal = confSelect.val();
@@ -56,6 +94,7 @@
             var username = $('#username');
             var operationParams = $('#operation-params');
             var operationParamsCheckbox = $('#operation-params-checkbox');
+            var operationParamsSelector = $('#operation-params-selector');
             var operationParamsOptions = $('#operation-params-options');
 
             function disableInputParams (val) {
@@ -64,19 +103,26 @@
                 });
             }
 
-            function createCheckbox () {
-                if (node.useinputparams) {
-                    operationParamsCheckbox.prop('checked', true);
-                }
-                operationParamsCheckbox.change(function () {
-                    if ($(this).is(':checked')) {
+            function createParametersSelector () {
+                operationParamsOptions.show();
+                operationParamsSelector.val(node.parameterOptions);
+                operationParamsSelector.off('change');
+                operationParamsSelector.change(function () {
+
+                    node.parameterOptions = operationParamsSelector.val();
+
+                    setOperationSummary();
+                    if (node.parameterOptions === PARAMETER_OPTIONS.INPUT_PARAMS) {
                         disableInputParams(true);
-                    } else {
-                        disableInputParams(false);
+                        return;
+                    } else if (node.parameterOptions === PARAMETER_OPTIONS.BROWSE) {
+                        node.useinputparams = null;
                     }
+                    disableInputParams(false);
                 });
             }
 
+            selectOperation.off('change');
             selectOperation.change(function () {
                 var currentSelection = $('#node-input-operation option:selected').text();
                 if (currentSelection && currentSelection !== node.operation) {
@@ -89,6 +135,8 @@
                 if (!node.endpointsMap || !node.availableEndpoints) {
                     return;
                 }
+                $('op-container').show();
+
                 selectOperation.empty();
                 selectOperation.append($('<option></option>')
                     .attr('disabled', 'true')
@@ -104,35 +152,109 @@
                 });
             }
 
+            var fillBrowsableParams = function (param, formRow, label) {
+                label.text(capitalizeFirstLetter(param.name.replace('_id', '')));
+                var op = PARAMS_OP_MAP[param.name];
+                var ep = node.endpointsMap[op].path;
+                var opParams = node.endpointsMap[op].parameters;
+                opParams = opParams.filter(function (p) {
+                    return BROWSABLE_IDs.indexOf(p.name) > -1;
+                });
+                var allParamsConverted = opParams.length === 0;
+
+                $.each(opParams, function (j, p) {
+                    if (node.parameters[p.name]) {
+                        ep = ep.replace('{' + p.name + '}', node.parameters[p.name]);
+                        allParamsConverted = true;
+                    } else {
+                        allParamsConverted = false;
+                    }
+                });
+
+                if (allParamsConverted) {
+                    var cached = cache[param.name][ep];
+
+                    var process = function (res) {
+                        if (!res) {
+                            return;
+                        }
+                        cache[param.name][ep] = res;
+                        var input = $('<select>');
+                        input.append($('<option></option>')
+                            .attr('disabled', 'true')
+                            .attr('selected', 'true')
+                            .text(' -- '));
+                        $(res).each(function () {
+                            input.append(
+                                $('<option>').attr('value', this.id).text(this.display_name || this.name));
+                        });
+                        var ids = res ? res.map(function (item) {
+                            return item.id;
+                        }) : [];
+                        formRow.append(label);
+                        formRow.append(input);
+                        if (node.parameters && node.parameters[param.name] &&
+                            ids.indexOf(parseInt(node.parameters[param.name])) > -1) {
+                            input.val(node.parameters[param.name]);
+                        } else if (res && res.length > 0) {
+                            input.val(res[0].id);
+                            node.parameters[param.name] = res[0].id;
+                        }
+                        input.off('change');
+                        input.change(function () {
+                            node.parameters[param.name] = input.val();
+                            setOperationSummary();
+                        });
+                    };
+
+                    if (cached) {
+                        process(cached);
+                    } else {
+                        getResource(ep, process);
+                    }
+                }
+            };
+
+            var fillIDParams = function (param, formRow, label) {
+                label.text(param.name + (param.required ? '*' : ''));
+                var input = $('<input type="text">');
+                input.attr('placeholder', param.description);
+                input.attr('id', param.name);
+                if (node.parameters) {
+                    var val = node.parameters[param.name] || null;
+                    if (val !== null) {
+                        input.val(val);
+                    }
+                }
+                formRow.append(label);
+                formRow.append(input);
+            };
+
+
             var setOperationSummary = function () {
                 if (!node.endpointsMap || !node.operation) {
                     return;
                 }
+
+                operationParams.empty();
                 operationSummary.html(node.endpointsMap[node.operation]['summary']);
 
                 var parameters = node.endpointsMap[node.operation]['parameters'];
-                operationParams.text('');
                 operationParamsCheckbox.text('');
                 if (parameters) {
-                    operationParamsOptions.show()
-                    createCheckbox();
+                    createParametersSelector();
 
                     $.each(parameters, function (idx, param) {
                         var formRow = $('<div class="form-row"></div>');
                         var label = $('<label></label>');
-                        label.text(param.name + (param.required ? '*' : ''));
-                        var input = $('<input type="text">');
-                        input.attr('placeholder', param.description);
-                        input.attr('id', param.name);
-                        formRow.attr('title', param.description);
-                        if (node.parameters) {
-                            var val = node.parameters[param.name] || null;
-                            if (val !== null) {
-                                input.val(val);
-                            }
+
+                        if (node.parameterOptions === PARAMETER_OPTIONS.BROWSE && BROWSABLE_IDs.indexOf(param.name) >
+                            -1) {
+                            fillBrowsableParams(param, formRow, label);
+                        } else {
+                            fillIDParams(param, formRow, label);
                         }
-                        formRow.append(label);
-                        formRow.append(input);
+                        formRow.attr('title', param.description);
                         formRow.attr('id', param.name);
                         operationParams.append(formRow);
                     });
@@ -154,45 +276,63 @@
                 operationParamsCheckbox.empty();
                 operationParams.empty();
                 operationSummary.empty();
-                // node.operation = null;
-                // node.useinputparams = null;
-                // node.parameters = null;
             }
 
-            function loadAvailableEndpoints () {
-
+            function prepareQueryParams () {
                 var configNodeId = confSelect.val();
                 if (configNodeId && configNodeId !== '_ADD_') {
                     node.configNodeId = configNodeId;
 
                     var configNode = RED.nodes.node(configNodeId);
-                    var qs = '?'
+                    var qs = '?';
                     if (configNode.credentials) {
                         qs += 'endpoint=' + configNode.endpoint + '&key=' + configNode.credentials.key;
                     } else {
                         qs += 'conf_node=' + configNodeId;
                     }
-                    $.getJSON('domotz-api-info' + qs,
-                        function (apiInfo) {
-                            apiSummary.text(apiInfo.title + ' - v' + apiInfo.version);
-                            if (apiInfo.usage && apiInfo.limit) {
-                                apiUsage.text('Daily usage: ' + apiInfo.usage + '/' + apiInfo.limit);
-                            } else {
-                                apiUsage.text('Daily usage: N/A');
-                            }
-                            node.endpointsMap = apiInfo.endpointsMap;
-                            node.availableEndpoints = apiInfo.availableEndpoints;
-
-                            initOperationSelector();
-                        }).fail(function () {
-                        resetInterface();
-                        apiSummary.text('Unable to retrieve API description');
-                    });
-                } else {
-                    resetInterface();
+                    return qs;
                 }
             }
 
+            function loadAvailableEndpoints () {
+                var qs = prepareQueryParams();
+                if (!qs) {
+                    resetInterface();
+                    return;
+                }
+                $.getJSON('domotz-api-info' + qs,
+                    function (apiInfo) {
+                        apiSummary.text(apiInfo.title + ' - v' + apiInfo.version);
+                        if (apiInfo.usage && apiInfo.limit) {
+                            apiUsage.text('Daily usage: ' + apiInfo.usage + '/' + apiInfo.limit);
+                        } else {
+                            apiUsage.text('Daily usage: N/A');
+                        }
+                        node.endpointsMap = apiInfo.endpointsMap;
+                        node.availableEndpoints = apiInfo.availableEndpoints;
+
+                        initOperationSelector();
+                    }).fail(function () {
+                    resetInterface();
+                    apiSummary.text('Unable to retrieve API description');
+                });
+            }
+
+            function getResource (path, cb) {
+                var qs = prepareQueryParams();
+                if (!qs) {
+                    return cb();
+                }
+                qs += '&path=' + path;
+                $.getJSON('domotz-api-call' + qs,
+                    function (apiRes) {
+                        cb(apiRes);
+                    }).fail(function () {
+                    apiSummary.text('Unable to retrieve API description');
+                });
+            }
+
+            confSelect.off('change');
             confSelect.change(function () {
                 var currentSelection = confSelect.val();
                 if (confIDVal !== currentSelection) {
@@ -205,15 +345,13 @@
             var node = this;
             node.parameters = {};
             node.hidden = !node.hidden;
-            var useInputParams = $('#useinputparams');
-            if (useInputParams.is(':checked')) {
-                node.useinputparams = true;
-                return;
-            }
-            node.useinputparams = false;
             var operationParams = $('#operation-params');
             operationParams.children().each(function () {
-                node.parameters[this.id] = $($(this).children('input')).val();
+                if ($($(this).children('input')).val()) {
+                    node.parameters[this.id] = $($(this).children('input')).val();
+                } else {
+                    node.parameters[this.id] = $($(this).children('select')).val();
+                }
             });
         },
         oneditcancel: function () {
@@ -222,6 +360,7 @@
             node.name = clone(node.oldName);
             node.parameters = clone(node.oldParameters);
             node.useinputparams = clone(node.oldUseinputparams);
+            node.parameterOptions = clone(node.oldParameterOptions);
         },
     });
 </script>
@@ -247,14 +386,25 @@
         <select id="node-input-operation"></select>
     </div>
 
+    <div id="op-container" style="visible: false" ></div>
     <h4 id="operation-summary" style="max-width: 400px;"></h4>
 
     <div id="operation-params-options" style="visible: false" class="form-row">
-        <label for="other-options">Use node input params</label>
-        <input type="checkbox" name="other-options" id="operation-params-checkbox">
+      <label for="other-options">Parameters</label>
+
+      <select name="other-options" id="operation-params-selector">
+        <option value="IDS">Use IDs</option>
+        <option value="INPUT_PARAMS">Use node input params</option>
+        <option value="BROWSE">Browse</option>
+      </select>
+
     </div>
 
     <div id="operation-params"></div>
+
+
+
+
 
 </script>
 

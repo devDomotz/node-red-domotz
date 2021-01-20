@@ -74,9 +74,6 @@ module.exports = function (RED) {
         RED.nodes.createNode(this, n);
 
         let node = this;
-        node.availableEndpoints = [];
-        node.endpointsMap = {};
-
         node.endpoint = n.endpoint;
         node.name = n.name;
     }
@@ -87,7 +84,7 @@ module.exports = function (RED) {
         },
     });
 
-    function domotzAPIINfo (req, res) {
+    function getEndpointData (req) {
         let endpoint;
         let key;
         if (req.query.conf_node) {
@@ -98,8 +95,16 @@ module.exports = function (RED) {
             endpoint = req.query.endpoint;
             key = req.query.key;
         }
+        return {
+            endpoint: endpoint,
+            key: key,
+        }
+    }
 
-        getAPIInfo(endpoint, key,
+    function domotzAPIINfo (req, res) {
+        let endpointData = getEndpointData(req)
+
+        getAPIInfo(endpointData.endpoint, endpointData.key,
             function (error, apiVersion, apiTitle, availableEndpoints, endpointsMap, dailyLimit, dailyUsage) {
                 if (error) {
                     return res.json();
@@ -115,5 +120,24 @@ module.exports = function (RED) {
             });
     }
 
+    function domotzAPICall(req, res) {
+        let endpointData = getEndpointData(req)
+        let path = req.query.path;
+
+        request({
+            headers: {
+                'X-API-KEY': endpointData.key,
+            },
+            json: true,
+            uri: endpointData.endpoint + path,
+        }, (error, response, data) => {
+            if (error || response.statusCode !== 200) {
+                return res.json(null);
+            }
+            return res.json(data);
+        });
+    }
+
     RED.httpAdmin.get('/domotz-api-info', RED.auth.needsPermission('domotz.read'), domotzAPIINfo);
+    RED.httpAdmin.get('/domotz-api-call', RED.auth.needsPermission('domotz.read'), domotzAPICall);
 };
