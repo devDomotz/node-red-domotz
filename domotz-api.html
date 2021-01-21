@@ -49,6 +49,9 @@
                     if (!node.operation || !node.endpointsMap) {
                         return false;
                     }
+                    if (node.useinputparams || node.parameterOptions === PARAMETER_OPTIONS.INPUT_PARAMS) {
+                        return true;
+                    }
 
                     var op = node.endpointsMap[node.operation];
                     if (!op) {
@@ -428,7 +431,7 @@
 
     An optional payload with the operation's parameters, e.g.:
 
-    <code>{"params": {"agent:id": "xyz"}}</code>
+    <code>{"params": {"agent_id": "xyz"}}</code>
 
     Static parameters can be alternatively defined in the
     configuration of the node. Required parameters are marked with an *.
