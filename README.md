@@ -10,6 +10,8 @@ An optional payload with the operation's parameters, e.g.:
 ```{"params": {"agent_id": "xyz"}}```
 
 Static parameters can be alternatively defined in the configuration of the node. Required parameters are marked with an *.
+Using the "Browse" option you can select agents, devices and sensors by name (note that this feature will
+use some of your API budged to retrieve the necessary resources).
 
 ## Outputs
 
