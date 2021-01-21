@@ -47,24 +47,7 @@ function getAPIInfo (endpoint, key, cb) {
             }
         }
         availableEndpoints.sort();
-
-        request({
-            headers: {
-                'X-API-KEY': key,
-            },
-            json: true,
-            uri: endpoint + 'meta/usage',
-        }, (error, response, data) => {
-            if (error || response.statusCode !== 200) {
-                return cb(true);
-            }
-            let dailyLimit = data.daily_limit;
-            let dailyUsage = data.daily_usage;
-
-            cb(null, apiVersion, apiTitle, availableEndpoints, endpointsMap, dailyLimit, dailyUsage);
-        });
-
-
+        cb(null, apiVersion, apiTitle, availableEndpoints, endpointsMap);
     });
 }
 
@@ -105,7 +88,7 @@ module.exports = function (RED) {
         let endpointData = getEndpointData(req)
 
         getAPIInfo(endpointData.endpoint, endpointData.key,
-            function (error, apiVersion, apiTitle, availableEndpoints, endpointsMap, dailyLimit, dailyUsage) {
+            function (error, apiVersion, apiTitle, availableEndpoints, endpointsMap) {
                 if (error) {
                     return res.json();
                 }
@@ -114,8 +97,6 @@ module.exports = function (RED) {
                     endpointsMap: endpointsMap,
                     version: apiVersion,
                     title: apiTitle,
-                    limit: dailyLimit,
-                    usage: dailyUsage,
                 });
             });
     }

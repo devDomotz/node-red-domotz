@@ -42,7 +42,27 @@
                 required: true,
             },
             endpointsMap: {},
-            parameters: {},
+            parameters: {
+                validate: function (v) {
+                    var node = this;
+
+                    if (!node.operation || !node.endpointsMap) {
+                        return false;
+                    }
+
+                    var op = node.endpointsMap[node.operation];
+                    if (!op) {
+                        return false;
+                    }
+                    var missingRequiredParams = false;
+                    $.each(op.parameters || [], function (idx, param) {
+                        if (!missingRequiredParams && param.required && !v[param.name]) {
+                            missingRequiredParams = true;
+                        }
+                    });
+                    return !missingRequiredParams;
+                },
+            },
             useinputparams: {},
             parameterOptions: {},
             availableEndpoints: [],
@@ -90,7 +110,6 @@
             var selectOperation = $('#node-input-operation');
             var operationSummary = $('#operation-summary');
             var apiSummary = $('#api-summary');
-            var apiUsage = $('#api-usage');
             var username = $('#username');
             var operationParams = $('#operation-params');
             var operationParamsCheckbox = $('#operation-params-checkbox');
@@ -153,7 +172,7 @@
             }
 
             var fillBrowsableParams = function (param, formRow, label) {
-                label.text(capitalizeFirstLetter(param.name.replace('_id', '')));
+                label.text(capitalizeFirstLetter(param.name.replace('_id', '')) + (param.required ? '*' : ''));
                 var op = PARAMS_OP_MAP[param.name];
                 var ep = node.endpointsMap[op].path;
                 var opParams = node.endpointsMap[op].parameters;
@@ -271,7 +290,6 @@
             function resetInterface () {
                 apiSummary.empty();
                 username.empty();
-                apiUsage.empty();
                 selectOperation.empty();
                 operationParamsCheckbox.empty();
                 operationParams.empty();
@@ -303,11 +321,6 @@
                 $.getJSON('domotz-api-info' + qs,
                     function (apiInfo) {
                         apiSummary.text(apiInfo.title + ' - v' + apiInfo.version);
-                        if (apiInfo.usage && apiInfo.limit) {
-                            apiUsage.text('Daily usage: ' + apiInfo.usage + '/' + apiInfo.limit);
-                        } else {
-                            apiUsage.text('Daily usage: N/A');
-                        }
                         node.endpointsMap = apiInfo.endpointsMap;
                         node.availableEndpoints = apiInfo.availableEndpoints;
 
@@ -370,7 +383,6 @@
     <div>
         <h4 id="api-summary"></h4>
         <p id="username"></p>
-        <p id="api-usage"></p>
     </div>
 
     <div class="form-row">
@@ -401,10 +413,6 @@
     </div>
 
     <div id="operation-params"></div>
-
-
-
-
 
 </script>
 
