@@ -92,7 +92,7 @@ module.exports = function (RED) {
             };
 
             if (operationDetails.hasParams) {
-                if (config.useinputparams && msg.payload.params) {
+                if ((config.useinputparams || config.parameterOptions === 'INPUT_PARAMS') && msg.payload.params) {
                     for (let param in msg.payload.params) {
                         if (msg.payload.params.hasOwnProperty(param)) {
                             addParameters(param, msg.payload.params[param]);

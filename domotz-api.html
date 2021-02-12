@@ -280,7 +280,7 @@
                         formRow.attr('id', param.name);
                         operationParams.append(formRow);
                     });
-                    if (node.useinputparams) {
+                    if (node.useinputparams || node.parameterOptions === PARAMETER_OPTIONS.INPUT_PARAMS) {
                         disableInputParams(true);
                     }
                 } else {
