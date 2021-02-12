@@ -66,6 +66,35 @@
                     return !missingRequiredParams;
                 },
             },
+            body: {
+                validate: function (v) {
+                    var node = this;
+
+                    if (!node.operation || !node.endpointsMap) {
+                        return false;
+                    }
+                    if (node.useinputparams || node.parameterOptions === PARAMETER_OPTIONS.INPUT_PARAMS) {
+                        return true;
+                    }
+                    var op = node.endpointsMap[node.operation];
+                    if (!op) {
+                        return false;
+                    }
+
+                    if (!op.requestBody || !op.requestBody.required) {
+                        return true;
+                    }
+                    if (!v) {
+                        return false;
+                    }
+                    try {
+                      JSON.parse(v)
+                      return true;
+                    } catch (e) {
+                       return false;
+                    }
+                }
+            },
             useinputparams: {},
             parameterOptions: {},
             availableEndpoints: [],
@@ -100,6 +129,7 @@
             node.oldOperation = clone(node.operation);
             node.oldName = clone(node.name);
             node.oldParameters = clone(node.parameters);
+            node.oldBody = clone(node.body);
             node.oldUseinputparams = clone(node.useinputparams);
             node.oldParameterOptions = clone(node.parameterOptions);
             if (node.useinputparams === true || node.useinputparams === false) {
@@ -280,6 +310,21 @@
                         formRow.attr('id', param.name);
                         operationParams.append(formRow);
                     });
+                    var requestBody = node.endpointsMap[node.operation].requestBody;
+                    if (requestBody) {
+                        var formRow = $('<div class="form-row"></div>');
+                        var label = $('<label></label>');
+                        label.text("Body" + (requestBody.required ? '*' : ''));
+                        var input = $('<input type="text">');
+                        input.attr('placeholder', "Body");
+                        input.attr('id', 'operation-body');
+                        if (node.body) {
+                            input.val(node.body);
+                        }
+                        formRow.append(label);
+                        operationParams.append(formRow);
+                        formRow.append(input);
+                    }
                     if (node.useinputparams || node.parameterOptions === PARAMETER_OPTIONS.INPUT_PARAMS) {
                         disableInputParams(true);
                     }
@@ -369,6 +414,11 @@
                     node.parameters[this.id] = $($(this).children('select')).val();
                 }
             });
+            var operationBody = $('#operation-body');
+            if (!operationBody) {
+                return;
+            }
+            node.body = operationBody.val();
         },
         oneditcancel: function () {
             var node = this;
@@ -377,6 +427,7 @@
             node.parameters = clone(node.oldParameters);
             node.useinputparams = clone(node.oldUseinputparams);
             node.parameterOptions = clone(node.oldParameterOptions);
+            node.body = clone(node.oldBody);
         },
     });
 </script>

@@ -79,9 +79,11 @@ module.exports = function (RED) {
                 return;
             }
             let method = operationDetails['method'];
+            let hasBody = operationDetails['requestBody'];
             let publicApiEndpoint = url.resolve(node.api.endpoint, '/public-api/v1');
             let domotzUrl = publicApiEndpoint + operationDetails['path'];
             let queryParams = {};
+            let inputBody = null;
 
             let addParameters = function (name, value) {
                 if (isQueryParam(name, operationDetails) && value) {
@@ -92,11 +94,16 @@ module.exports = function (RED) {
             };
 
             if (operationDetails.hasParams) {
-                if ((config.useinputparams || config.parameterOptions === 'INPUT_PARAMS') && msg.payload.params) {
-                    for (let param in msg.payload.params) {
-                        if (msg.payload.params.hasOwnProperty(param)) {
-                            addParameters(param, msg.payload.params[param]);
+                if ((config.useinputparams || config.parameterOptions === 'INPUT_PARAMS')) {
+                    if (msg.payload.params) {
+                        for (let param in msg.payload.params) {
+                            if (msg.payload.params.hasOwnProperty(param)) {
+                                addParameters(param, msg.payload.params[param]);
+                            }
                         }
+                    }
+                    if (hasBody && msg.payload.body) {
+                        inputBody = msg.payload.body;
                     }
                 } else {
                     for (let param in config.parameters) {
@@ -104,6 +111,7 @@ module.exports = function (RED) {
                             addParameters(param, config.parameters[param]);
                         }
                     }
+                    inputBody = hasBody && config.body ? JSON.parse(config.body) : null;
                 }
             }
 
@@ -121,7 +129,7 @@ module.exports = function (RED) {
                 return;
             }
 
-            let options = getRequestOptions(domotzUrl, apiKey, method);
+            let options = getRequestOptions(domotzUrl, apiKey, method, inputBody);
 
             node.debug('performing request to ' + domotzUrl);
 
