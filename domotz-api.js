@@ -22,21 +22,35 @@ const url = require('url');
 const querystring = require('querystring');
 
 module.exports = function (RED) {
-    function DomotzApi(config) {
+    function DomotzApi (config) {
         RED.nodes.createNode(this, config);
 
         let node = this;
 
+        let setStatusDisconnected = function () {
+            node.status({fill: 'red', shape: 'ring', text: 'disconnected'});
+        };
+
+        let setStatusConnected = function () {
+            node.status({fill: 'green', shape: 'dot', text: 'connected'});
+        };
+
+
         node.api = RED.nodes.getNode(config.api);
+        if (!node.api) {
+            setStatusDisconnected();
+            return;
+        }
+
         let apiKey = node.api.credentials.key;
 
         let getRequestOptions = function (uri, apiKey, method, body) {
             let options = {
                 headers: {
-                    'X-API-KEY': apiKey
+                    'X-API-KEY': apiKey,
                 },
                 uri: uri,
-                json: true
+                encoding: null,
             };
             if (method) {
                 options.method = method;
@@ -49,17 +63,9 @@ module.exports = function (RED) {
         };
 
 
-        let setStatusDisconnected = function () {
-            node.status({fill: "red", shape: "ring", text: "disconnected"});
-        };
-
-        let setStatusConnected = function () {
-            node.status({fill: "green", shape: "dot", text: "connected"});
-        };
-
         let isQueryParam = function (paramName, operationDetails) {
             for (let i = 0; i < operationDetails.parameters.length; i++) {
-                if (operationDetails.parameters[i].name == paramName) {
+                if (operationDetails.parameters[i].name === paramName) {
                     return (operationDetails.parameters[i].in === 'query');
                 }
             }
@@ -73,9 +79,11 @@ module.exports = function (RED) {
                 return;
             }
             let method = operationDetails['method'];
+            let hasBody = operationDetails['requestBody'];
             let publicApiEndpoint = url.resolve(node.api.endpoint, '/public-api/v1');
             let domotzUrl = publicApiEndpoint + operationDetails['path'];
             let queryParams = {};
+            let inputBody = null;
 
             let addParameters = function (name, value) {
                 if (isQueryParam(name, operationDetails) && value) {
@@ -86,11 +94,16 @@ module.exports = function (RED) {
             };
 
             if (operationDetails.hasParams) {
-                if (config.useinputparams && msg.payload.params) {
-                    for (let param in msg.payload.params) {
-                        if (msg.payload.params.hasOwnProperty(param)) {
-                            addParameters(param, msg.payload.params[param]);
+                if ((config.useinputparams || config.parameterOptions === 'INPUT_PARAMS')) {
+                    if (msg.payload.params) {
+                        for (let param in msg.payload.params) {
+                            if (msg.payload.params.hasOwnProperty(param)) {
+                                addParameters(param, msg.payload.params[param]);
+                            }
                         }
+                    }
+                    if (hasBody && msg.payload.body) {
+                        inputBody = msg.payload.body;
                     }
                 } else {
                     for (let param in config.parameters) {
@@ -98,6 +111,7 @@ module.exports = function (RED) {
                             addParameters(param, config.parameters[param]);
                         }
                     }
+                    inputBody = hasBody && config.body ? JSON.parse(config.body) : null;
                 }
             }
 
@@ -106,33 +120,46 @@ module.exports = function (RED) {
                 domotzUrl = domotzUrl + '?' + queryString;
             }
 
-            if (domotzUrl.indexOf('{') != -1) {
-                node.send([null, {
-                    payload: "Not all URL params converted: " + domotzUrl
-                }]);
+            if (domotzUrl.indexOf('{') !== -1) {
+                node.send([
+                    null, {
+                        payload: 'Not all URL params converted: ' + domotzUrl,
+                    },
+                ]);
                 return;
             }
 
-            let options = getRequestOptions(domotzUrl, apiKey, method);
+            let options = getRequestOptions(domotzUrl, apiKey, method, inputBody);
 
-            node.debug("performing request to " + domotzUrl);
+            node.debug('performing request to ' + domotzUrl);
 
             rq(options, (error, response, result) => {
                 if (error) {
-                    node.debug("Unable to get resource: " + JSON.stringify(error));
-                    node.send([null, {
-                        payload: {
-                            code: error.response.statusCode,
-                            message: error.error
-                        }
-                    }]);
+                    node.debug('Unable to get resource: ' + JSON.stringify(error));
+                    node.send([
+                        null, {
+                            payload: {
+                                code: error.response.statusCode,
+                                message: error.error,
+                            },
+                        },
+                    ]);
                     return;
                 }
+                try {
+                    result = JSON.parse(result);
+                } catch (e) {
+                    node.log('result is not JSON');
+                }
+
                 let output = {
                     payload: {
                         message: result,
-                        code: response.statusCode
-                    }
+                        code: response.statusCode,
+                        headers: response.headers,
+                        configParams: config.parameters,
+                        inputParams: msg.payload && msg.payload.params,
+                    },
                 };
                 if (method.toLowerCase() === 'head') {
                     output.payload.headers = {};
@@ -140,15 +167,15 @@ module.exports = function (RED) {
                     for (let h in expectedResponseHeaders) {
                         let responseHeaders = response['headers'];
                         for (let actualHeader in responseHeaders) {
-                            if (responseHeaders.hasOwnProperty(actualHeader) && actualHeader.toLowerCase() == h.toLowerCase()) {
+                            if (responseHeaders.hasOwnProperty(actualHeader) && actualHeader.toLowerCase() === h.toLowerCase()) {
                                 output.payload.headers[h] = responseHeaders[actualHeader];
                             }
                         }
                     }
                 }
                 node.send([output, null]);
-                node.status({fill: "green", shape: "dot", text: "connected"});
-            })
+                node.status({fill: 'green', shape: 'dot', text: 'connected'});
+            });
         });
 
         if (!node.api || !apiKey || !node.api.endpoint) {
@@ -156,17 +183,16 @@ module.exports = function (RED) {
         } else {
             let options = getRequestOptions(url.resolve(node.api.endpoint, 'public-api/v1/user'), apiKey);
 
-            rq(options, (error, response, userObj) => {
+            rq(options, (error) => {
                 if (error) {
-                    node.warn("Unable to authenticate");
+                    node.warn('Unable to authenticate');
                     setStatusDisconnected();
                     return;
                 }
-                node.log("Domotz User id: " + userObj.id + " name: " + userObj.name);
                 setStatusConnected();
-            })
+            });
         }
     }
 
-    RED.nodes.registerType("domotz-api", DomotzApi);
+    RED.nodes.registerType('domotz-api', DomotzApi);
 };

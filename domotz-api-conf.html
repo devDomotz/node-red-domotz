@@ -2,15 +2,41 @@
     RED.nodes.registerType('domotz-api-conf', {
         category: 'config',
         defaults: {
-            name: {value: "Name", required: true},
-            endpoint: {value: "https://", required: true}
+            name: {value: 'Name', required: true},
+            endpoint: {value: 'https://', required: true},
         },
         credentials: {
-            key: {type: "text"}
+            key: {type: 'text'},
         },
         label: function () {
             return this.name;
-        }
+        },
+        oneditprepare: function () {
+            var node = this;
+            var configNodeId = node.id;
+            var configNode = RED.nodes.node(configNodeId);
+            if (!configNode) {
+                return;
+            }
+            var apiUsageContainer = $('#api-usage');
+            var apiUsage = $('#api-usage-text');
+            var qs = '?endpoint=' + configNode.endpoint + '&key=' + configNode.credentials.key + '&path=/meta/usage';
+            var setNA = function () {
+                apiUsage.val('N/A');
+            };
+
+            $.getJSON('domotz-api-call' + qs,
+                function (apiRes) {
+                    apiUsageContainer.show();
+                    if (apiRes.daily_usage && apiRes.daily_limit) {
+                        apiUsage.val(apiRes.daily_usage + '/' + apiRes.daily_limit);
+                    } else {
+                        setNA();
+                    }
+                }).fail(function () {
+                setNA();
+            });
+        },
     });
 </script>
 
@@ -27,5 +53,11 @@
         <label for="node-config-input-key"><i class="fa fa-fw fa-key"></i>API-Key</label>
         <input type="text" id="node-config-input-key">
     </div>
+    <div class="form-row" id="api-usage" style="display: none">
+        <label for="api-usage-text"><i class="fa fa-fw fa-pie-chart"></i>API Usage</label>
+        <input type="text" id="api-usage-text" disabled></input>
+    </div>
+    <div>
 
+    </div>
 </script>

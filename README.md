@@ -10,13 +10,17 @@ An optional payload with the operation's parameters, e.g.:
 ```{"params": {"agent_id": "xyz"}}```
 
 Static parameters can be alternatively defined in the configuration of the node. Required parameters are marked with an *.
+Using the "Browse" option you can select agents, devices and sensors by name (note that this feature will
+use some of your API budged to retrieve the necessary resources).
 
 ## Outputs
 
 * Output: 
   * payload.code: The HTTP code
-  * payload.message: the JSON output of the operation
-  * payload.headers: the relevant HTTP response headers
+  * payload.message: the payload of the HTTP response
+  * payload.headers: the HTTP response headers
+  * payload.configParams: the configuration parameters of the node
+  * payload.inputParams: the input parameters of the node
 * Errors:
   * payload.code: The HTTP error code
   * payload.message: The HTTP response content
@@ -42,11 +46,11 @@ Node configuration
 Flow example
 
 
-<img src="screenshots/example_flow.png?raw=true" width="450">
+<img src="screenshots/example_flow.png?raw=true" width="800">
 
 ------------------------
 
 Visualization (with node red dashboard)
 
 
-<img src="screenshots/example_charts.png?raw=true" width="450">
+<img src="screenshots/example_charts.png?raw=true" width="800">
