@@ -11,6 +11,7 @@
         'agent_id': 'agent.listAgents',
         'device_id': 'device.listDevices',
         'sensor_id': 'eyes.listEyesSNMP',
+        'variable_id': 'variables.listDeviceVariables',
     };
 
     var PARAMETER_OPTIONS = Object.freeze({
@@ -23,6 +24,7 @@
         'agent_id': {},
         'device_id': {},
         'sensor_id': {},
+        'variable_id': {},
     };
 
     function capitalizeFirstLetter (string) {
@@ -238,7 +240,7 @@
                             .text(' -- '));
                         $(res).each(function () {
                             input.append(
-                                $('<option>').attr('value', this.id).text(this.display_name || this.name));
+                                $('<option>').attr('value', this.id).text(this.display_name || this.name || this.label || this.path));
                         });
                         var ids = res ? res.map(function (item) {
                             return item.id;
